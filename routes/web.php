@@ -32,8 +32,10 @@ Route::get('/', function () {
 });
 
 Route::middleware('check.api.token')->group(function () {
-    Route::post('/mobile/teste', [MobileAuthController::class, 'teste']);
-    Route::post('/mobile/logout', [MobileAuthController::class, 'logout']);
+    Route::prefix('/mobile')->controller(MobileAuthController::class)->group(function () {
+        Route::post('/teste', 'login');
+        Route::post('/mobile', 'logout');
+    });
 });
 
 Route::post('/git-webhook', [GitWebhookController::class, 'handle']);
@@ -70,13 +72,12 @@ Route::middleware('auth')->group(function () {
         Route::delete('/delete/{cliente}', [ClienteController::class, 'destroy'])->name('cliente.destroy');
         Route::put('/atualiza/{cliente}', [ClienteController::class, 'update'])->name('cliente.update');
         Route::get('/buscar-por-telefone', 'buscarPorTelefone')->name('cliente.buscar.telefone');
-
     });
 
     Route::prefix('/pedido')->controller(PedidoController::class)->group(function () {
         Route::get('/', 'index')->name('pedido.index');              // Listagem de pedidos (acompanhamento)
-        Route::post('/{id}/alterar-situacao', 'alterarSituacao');         
-        Route::post('/filtro', 'filtro')->name('pedido.filtro');              
+        Route::post('/{id}/alterar-situacao', 'alterarSituacao');
+        Route::post('/filtro', 'filtro')->name('pedido.filtro');
         Route::get('/create', 'create')->name('pedido.create');      // Formulário de novo pedido
         Route::post('/', 'store')->name('pedido.store');             // Armazenar novo pedido
         Route::get('/{id}', 'show')->name('pedido.show');            // Exibir detalhes de um pedido
@@ -87,7 +88,6 @@ Route::middleware('auth')->group(function () {
         Route::post('/{pedido}/remover-entregador', 'removerEntregador');
         Route::post('/{pedido}/atualizar-tipo', 'atualizarTipo');
         Route::post('/{pedido}/cancelar', 'cancelar')->name('pedido.cancelar');
-
     });
 
     Route::prefix('/dispositivo')->controller(DeviceController::class)->group(function () {
@@ -111,7 +111,7 @@ Route::middleware('auth')->group(function () {
         Route::put('/atualizar/{id}', 'update')->name('update'); // Atualizar dados
         Route::post('/toggleAtivo', 'toggleAtivo')->name('toggleAtivo'); // Ativar/desativar
         Route::post('/salvar-trabalhando', 'salvarTrabalhando')->name('salvarTrabalhando'); // Ativar/desativar
-        Route::get('/listar', 'listar'); 
+        Route::get('/listar', 'listar');
     });
 
 
@@ -124,7 +124,6 @@ Route::middleware('auth')->group(function () {
         Route::delete('/produtos/{id}', [ProdutoController::class, 'destroy'])->name('destroy');
         Route::post('/toggle-aplicativo', [ProdutoController::class, 'toggleAplicativo'])->name('toggle.aplicativo');
         Route::get('/buscar/{codigo}', [ProdutoController::class, 'buscar']);
-
     });
 
 

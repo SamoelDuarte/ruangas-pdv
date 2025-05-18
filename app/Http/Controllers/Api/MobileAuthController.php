@@ -13,7 +13,7 @@ class MobileAuthController extends Controller
     public function login(Request $request)
     {
 
-        dd('aki');
+      
         $request->validate([
             'email' => 'required|email',
             'password' => 'required',

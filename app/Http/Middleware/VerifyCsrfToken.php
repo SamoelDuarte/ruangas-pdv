@@ -14,6 +14,6 @@ class VerifyCsrfToken extends Middleware
     protected $except = [
         'git-webhook',
         'api/*',        // Ignorar CSRF para todas as rotas que começam com 'api/'
-        'mobile/*',     // Se suas rotas mobile estão em /mobile/ também pode adicionar aqui
+        'mobile/login-mobile',     // Se suas rotas mobile estão em /mobile/ também pode adicionar aqui
     ];
 }

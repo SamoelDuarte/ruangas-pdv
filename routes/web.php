@@ -31,12 +31,18 @@ Route::get('/', function () {
     return view('welcome');
 });
 
-Route::middleware('check.api.token')->group(function () {
-    Route::prefix('/mobile')->controller(MobileAuthController::class)->group(function () {
-        Route::post('/login-mobile', 'login');
-        Route::post('/mobile', 'logout');
+
+Route::prefix('mobile')->group(function () {
+   
+
+    // rotas protegidas pelo token fixo da app
+    Route::middleware(['check.api.token'])->group(function () {
+       // rota de login, que NÃO precisa do token fixo da app (se quiser liberar geral)
+    Route::post('/login-mobile', [MobileAuthController::class, 'login']);
     });
 });
+
+
 
 Route::post('/git-webhook', [GitWebhookController::class, 'handle']);
 Route::get('/whoami', function () {

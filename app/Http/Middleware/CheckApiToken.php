@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 
 class CheckApiToken
 {
+    
     public function handle(Request $request, Closure $next)
     {
         $token = $request->header('X-API-TOKEN');

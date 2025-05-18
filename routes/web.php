@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\MobileAuthController;
 use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\CronController;
 use App\Http\Controllers\DashboardController;
@@ -13,6 +14,8 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\UsuarioController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\GitWebhookController;
+use Illuminate\Http\Request;
+
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -26,6 +29,11 @@ use App\Http\Controllers\GitWebhookController;
 
 Route::get('/', function () {
     return view('welcome');
+});
+
+Route::middleware('check.api.token')->group(function () {
+    Route::post('/mobile/teste', [MobileAuthController::class, 'teste']);
+    Route::post('/mobile/logout', [MobileAuthController::class, 'logout']);
 });
 
 Route::post('/git-webhook', [GitWebhookController::class, 'handle']);

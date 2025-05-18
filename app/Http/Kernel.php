@@ -18,6 +18,7 @@ class Kernel extends HttpKernel
         'cors' => \App\Http\Middleware\CustomCors::class,
         'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
         'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
+        'check.api.token' => \App\Http\Middleware\CheckApiToken::class,
     ];
     protected $middleware = [
         // \App\Http\Middleware\TrustHosts::class,

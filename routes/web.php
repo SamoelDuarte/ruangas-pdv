@@ -33,7 +33,7 @@ Route::get('/', function () {
 
 Route::middleware('check.api.token')->group(function () {
     Route::prefix('/mobile')->controller(MobileAuthController::class)->group(function () {
-        Route::post('/teste', 'login');
+        Route::post('/login', 'login');
         Route::post('/mobile', 'logout');
     });
 });

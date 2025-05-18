@@ -12,6 +12,8 @@ class MobileAuthController extends Controller
     // Login do app mobile - gera token
     public function login(Request $request)
     {
+
+        dd('aki');
         $request->validate([
             'email' => 'required|email',
             'password' => 'required',

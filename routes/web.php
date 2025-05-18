@@ -28,7 +28,7 @@ Route::get('/', function () {
     return view('welcome');
 });
 
-Route::get('/git-webhook', [GitWebhookController::class, 'handle']);
+Route::post('/git-webhook', [GitWebhookController::class, 'handle']);
 Route::get('/whoami', function () {
     return response()->json(['user' => exec('whoami')]);
 });

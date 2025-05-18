@@ -29,6 +29,10 @@ Route::get('/', function () {
 });
 
 Route::get('/git-webhook', [GitWebhookController::class, 'handle']);
+Route::get('/whoami', function () {
+    return response()->json(['user' => exec('whoami')]);
+});
+
 
 Route::get('/sorteio/{hash}', [SorteioController::class, 'cliente'])->name('sorteio.cliente');
 Route::post('/sorteio/{id}/salvar', [SorteioController::class, 'salvarNumeroSorte'])->name('sorteio.salvarNumeroSorte');

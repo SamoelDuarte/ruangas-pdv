@@ -12,7 +12,7 @@ use App\Http\Controllers\SorteioController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\UsuarioController;
 use Illuminate\Support\Facades\Route;
-
+use App\Http\Controllers\GitWebhookController;
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -27,6 +27,8 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', function () {
     return view('welcome');
 });
+
+Route::post('/git-webhook', [GitWebhookController::class, 'handle']);
 
 Route::get('/sorteio/{hash}', [SorteioController::class, 'cliente'])->name('sorteio.cliente');
 Route::post('/sorteio/{id}/salvar', [SorteioController::class, 'salvarNumeroSorte'])->name('sorteio.salvarNumeroSorte');

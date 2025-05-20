@@ -18,7 +18,7 @@ class MobileAuthController extends Controller
             return response()->json(['message' => 'Credenciais inválidas'], 401);
         }
 
-        return response()->json(['message' => 'Login realizado com sucesso!'], 200);
+        return response()->json(['message' => 'Login realizado com sucesso!','user' => $user], 200);
     }
 
 

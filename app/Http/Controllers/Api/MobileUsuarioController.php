@@ -1,8 +1,8 @@
 <?php
+namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Entregador;
-use Illuminate\Http\Request;
 
 class MobileUsuarioController extends Controller
 {

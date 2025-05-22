@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\MobileAuthController;
+use App\Http\Controllers\Api\MobilePedidoController;
 use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\CronController;
 use App\Http\Controllers\DashboardController;
@@ -39,6 +40,7 @@ Route::prefix('mobile')->group(function () {
     Route::middleware(['check.api.token'])->group(function () {
        // rota de login, que NÃO precisa do token fixo da app (se quiser liberar geral)
     Route::post('/login-mobile', [MobileAuthController::class, 'login']);
+     Route::get('/pedidos/{usuario_id}', [MobilePedidoController::class, 'listarPedidos']);
     });
 });
 

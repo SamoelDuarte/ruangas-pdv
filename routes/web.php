@@ -40,7 +40,7 @@ Route::prefix('mobile')->group(function () {
         Route::post('/login-mobile', [MobileAuthController::class, 'login']);
         Route::get('/pedidos/{usuario_id}', [MobilePedidoController::class, 'listarPedidos']);
         Route::get('/usuario/{usuario_id}', [MobileUsuarioController::class, 'verificaUsuario']);
-        Route::put('/pedidos/{id}/status', [MobilePedidoController::class, 'atualizarStatus']);
+        Route::post('/pedidos/{id}/status', [MobilePedidoController::class, 'atualizarStatus']);
     });
 });
 

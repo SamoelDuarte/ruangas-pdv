@@ -41,8 +41,7 @@ class MobilePedidoController extends Controller
         }
 
         $status = $request->input('descricao');
-        $motivoCancelamento = $request->input('motivo_cancelamento');
-        $motivoReculsa = $request->input('motivo_reculsa');
+        $motivo = $request->input('motivo');
 
         // Valida status permitido
         $statusPermitidos = ['aceito', 'recusado', 'cancelado'];
@@ -59,18 +58,18 @@ class MobilePedidoController extends Controller
 
         // Se for cancelado, precisa do motivo_cancelamento
         if ($status === 'cancelado') {
-            if (!$motivoCancelamento) {
+            if (!$motivo) {
                 return response()->json(['erro' => 'Motivo do cancelamento é obrigatório'], 422);
             }
-            $pedido->motivo_cancelamento = $motivoCancelamento;
+            $pedido->motivo_cancelamento = $motivo;
         }
 
         // Se for recusado, precisa do motivo_reculsa
         if ($status === 'recusado') {
-            if (!$motivoReculsa) {
+            if (!$motivo) {
                 return response()->json(['erro' => 'Motivo da recusa é obrigatório'], 422);
             }
-            $pedido->motivo_reculsa = $motivoReculsa;
+            $pedido->motivo_reculsa = $motivo;
         }
 
         $pedido->save();

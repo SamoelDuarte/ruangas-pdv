@@ -18,6 +18,7 @@ class Pedido extends Model
         'tipo_pedido',
         'notifica_mensagem',
         'motivo_cancelamento',
+        'motivo_reculsa',
         'status_pedido_id'
     ];
 

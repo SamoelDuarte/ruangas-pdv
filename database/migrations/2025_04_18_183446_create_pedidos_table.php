@@ -17,6 +17,7 @@ return new class extends Migration
             $table->enum('tipo_pedido', ['tele_entrega', 'automatico', 'pdv','portaria'])->default('tele_entrega'); // Tipo do pedido
             $table->boolean('notifica_mensagem')->default(false);
             $table->string('motivo_cancelamento')->nullable(); // Pode ser nulo
+            $table->string('motivo_reculsa')->nullable(); // Pode ser nulo
             $table->timestamps();
         });
     }

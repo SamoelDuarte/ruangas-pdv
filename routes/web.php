@@ -35,16 +35,15 @@ Route::get('/', function () {
 
 
 Route::prefix('mobile')->group(function () {
-   
-
     // rotas protegidas pelo token fixo da app
     Route::middleware(['check.api.token'])->group(function () {
-       // rota de login, que NÃO precisa do token fixo da app (se quiser liberar geral)
-    Route::post('/login-mobile', [MobileAuthController::class, 'login']);
-     Route::get('/pedidos/{usuario_id}', [MobilePedidoController::class, 'listarPedidos']);
-     Route::get('/usuario/{usuario_id}', [MobileUsuarioController::class, 'verificaUsuario']);
+        Route::post('/login-mobile', [MobileAuthController::class, 'login']);
+        Route::get('/pedidos/{usuario_id}', [MobilePedidoController::class, 'listarPedidos']);
+        Route::get('/usuario/{usuario_id}', [MobileUsuarioController::class, 'verificaUsuario']);
+        Route::put('/pedidos/{id}/status', [MobilePedidoController::class, 'atualizarStatus']);
     });
 });
+
 
 
 

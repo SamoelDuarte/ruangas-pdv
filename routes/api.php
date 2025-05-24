@@ -23,15 +23,15 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 
 Route::prefix('mobile')->group(function () {
 
+    // rota de login, que NÃO precisa do token fixo da app
+    Route::post('/login-mobile', [MobileAuthController::class, 'login']);
 
     // rotas protegidas pelo token fixo da app
     Route::middleware(['check.api.token'])->group(function () {
-        // rota de login, que NÃO precisa do token fixo da app (se quiser liberar geral)
-        Route::post('/login-mobile', [MobileAuthController::class, 'login']);
 
-        Route::prefix('/pedidos')->controller(MobilePedidoController::class)->group(function () {
-            Route::get('/{usuario_id}', [MobilePedidoController::class, 'listarPedidos']);
-            Route::put('/{id}/status', [MobilePedidoController::class, 'atualizarStatus']);
+        Route::prefix('pedidos')->controller(MobilePedidoController::class)->group(function () {
+            Route::get('/{usuario_id}', 'listarPedidos');
+            Route::put('/{id}/status', 'atualizarStatus');
         });
 
         Route::get('/usuario/{usuario_id}', [MobileUsuarioController::class, 'verificaUsuario']);

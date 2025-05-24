@@ -36,7 +36,6 @@ class MobilePedidoController extends Controller
     public function atualizarStatus(Request $request, $id)
     {
         $pedido = Pedido::find($id);
-
         if (!$pedido) {
             return response()->json(['erro' => 'Pedido não encontrado'], 404);
         }

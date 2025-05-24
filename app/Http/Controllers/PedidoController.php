@@ -66,7 +66,7 @@ class PedidoController extends Controller
     public function atribuirEntregador(Request $request, Pedido $pedido)
     {
         $pedido->entregador_id = $request->entregador_id;
-        $pedido->status_pedido_id = 2; // Em andamento
+        $pedido->status_pedido_id = 6; // Em andamento
         $pedido->save();
 
         return response()->json([
@@ -159,7 +159,7 @@ class PedidoController extends Controller
                 'desconto'            => $dados['desconto'] ?? 0,
                 'notifica_mensagem'   => $dados['notifica_mensagem'] ?? false,
                 'cliente_id'          => $cliente->id,
-                'status_pedido_id'    => 1, // Status inicial padrão
+                'status_pedido_id'    => 6, // Status inicial padrão
             ]);
 
             HistoricoStatusPedido::create([

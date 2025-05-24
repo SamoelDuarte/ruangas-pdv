@@ -74,12 +74,21 @@ class MobilePedidoController extends Controller
 
         $pedido->save();
 
-        // Histórico de status (opcional)
+        // Busca nome do entregador (relacionado ao pedido)
+        $nomeEntregador = $pedido->entregador ? $pedido->entregador->nome : 'Desconhecido';
+
+        // Monta a observação personalizada
+        $observacao = null;
+        if (in_array($status, ['cancelado', 'recusado'])) {
+            $observacao = ucfirst($status) . " por $nomeEntregador. Motivo: $motivo";
+        }
+
         $pedido->historicoStatus()->create([
-            'status_pedido_id' => $statusId,
+            'status' => $statusId,
             'data' => now(),
-            'observacao' => $motivoCancelamento ?? $motivoReculsa ?? null,
+            'observacao' => $observacao,
         ]);
+
 
         return response()->json(['sucesso' => true, 'pedido' => $pedido]);
     }

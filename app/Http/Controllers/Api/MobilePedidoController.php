@@ -40,7 +40,7 @@ class MobilePedidoController extends Controller
             return response()->json(['erro' => 'Pedido não encontrado'], 404);
         }
 
-        $status = $request->input('status');
+        $status = $request->input('descricao');
         $motivoCancelamento = $request->input('motivo_cancelamento');
         $motivoReculsa = $request->input('motivo_reculsa');
 
@@ -50,7 +50,7 @@ class MobilePedidoController extends Controller
             return response()->json(['erro' => 'Status inválido'], 400);
         }
 
-        $statusId = StatusPedido::where('slug', $status)->value('id');
+        $statusId = StatusPedido::where('descricao', $status)->value('id');
         if (!$statusId) {
             return response()->json(['erro' => 'Status não encontrado'], 400);
         }

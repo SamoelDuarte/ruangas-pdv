@@ -23,6 +23,7 @@ return new class extends Migration
             ['descricao' => 'cancelado',    'cor' => '#dc3545', 'created_at' => now(), 'updated_at' => now()], // vermelho
             ['descricao' => 'atrasado',     'cor' => '#fd7e14', 'created_at' => now(), 'updated_at' => now()], // laranja
             ['descricao' => 'aguardando',   'cor' => '#6f42c1', 'created_at' => now(), 'updated_at' => now()], // roxo
+            ['descricao' => 'recusado',     'cor' => '#6c757d', 'created_at' => now(), 'updated_at' => now()], // cinza
         ]);
     }
     public function down(): void

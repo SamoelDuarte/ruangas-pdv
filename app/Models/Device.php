@@ -47,7 +47,7 @@ class Device extends Model
     public function getDisplayStatusAttribute()
     {
 
-        if ($this->status == "AUTHENTICATED") {
+        if ($this->status == "open") {
             return "Conectado";
         }
 

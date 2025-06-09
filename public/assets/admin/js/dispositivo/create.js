@@ -87,46 +87,48 @@ function startVerificacao() {
     const intervalId = setInterval(() => {
         if (conectado) return clearInterval(intervalId);
 
-        $.ajax({
-            url: "/dispositivo/getStatus",
-            type: "GET",
-            data: { sessionId: session },
-            success: function (response) {
-                let res = JSON.parse(response);
-                if (res.status === 'AUTHENTICATED') {
-                    conectado = true;
-                    $('#qrcode-img').hide();
-                    $('#qr-timer').hide();
-                    $('#footer-qr-code').show();
+      $.ajax({
+                url: "/dispositivo/getStatus",
+        type: "GET",
+        data: { sessionId: session },
+        success: function (response) {
+            let res = response.data; // Corrigido: acessar a chave 'data'
+            
+            if (res.instance && res.instance.state === 'open') {
+                conectado = true;
+                $('#qrcode-img').hide();
+                $('#qr-timer').hide();
+                $('#footer-qr-code').show();
 
-                    // Atualiza com nome também
-                    $.ajax({
-                        url: "updateStatus",
-                        method: "POST",
-                        data: JSON.stringify({
-                            id: id_device,
-                            status: res.status,
-                            jid: res.me.jid,
-                            picture: res.me.picture,
-                            nome: inputNome.value
-                        }),
-                        headers: {
-                            "Content-Type": "application/json",
-                            "X-CSRF-TOKEN": $('meta[name="csrf-token"]').attr('content')
-                        }
-                    });
+                $.ajax({
+                    url: "updateStatus",
+                    method: "POST",
+                    data: JSON.stringify({
+                        id: id_device,
+                        status: res.instance.state,
+                        jid: res.instance.instanceName,
+                        picture: null, // Sem picture na resposta atual
+                        nome: inputNome.value
+                    }),
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRF-TOKEN": $('meta[name="csrf-token"]').attr('content')
+                    }
+                });
 
-                    Swal.fire({
-                        toast: true,
-                        position: 'top-end',
-                        icon: 'success',
-                        title: "Conectado com sucesso.",
-                        showConfirmButton: false,
-                        timer: 5000,
-                    });
+                Swal.fire({
+                    toast: true,
+                    position: 'top-end',
+                    icon: 'success',
+                    title: "Conectado com sucesso.",
+                    showConfirmButton: false,
+                    timer: 5000,
+                        });
+                    }
                 }
-            }
-        });
+            });
+
+
     }, 1000);
 }
 

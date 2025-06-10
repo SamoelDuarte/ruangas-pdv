@@ -30,7 +30,9 @@ $('#table-device').DataTable({
             btn = "danger";
         }
         $('td:eq(1)', row).html('<button class="btn btn-' + btn + '">' + data['display_status'] + '</button>');
-        $('td:eq(2)', row).html('<a href="javascript:;" data-toggle="modal" onClick="configModalDelete(' + data["id"] + ')" data-target="#modalDelete" class="btn btn-sm btn-danger delete"><i class="far fa-trash-alt"></i></a>');
+        $('td:eq(2)', row).html(
+            '<a href="#" class="btn btn-sm btn-danger delete" data-bs-toggle="modal" data-bs-target="#modalDelete" onclick="configModalDelete(' + data["id"] + ')"><i class="far fa-trash-alt"></i></a>'
+        );
 
 
     },

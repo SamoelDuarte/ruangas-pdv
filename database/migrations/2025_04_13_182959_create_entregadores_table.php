@@ -62,6 +62,16 @@ class CreateEntregadoresTable extends Migration
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
+            [
+                'nome' => 'a',
+                'email' => 'a@a.com',
+                'senha' => bcrypt('123'),
+                'telefone' => '11986123660',
+                'ativo' => true,
+                'trabalhando' => true,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]
         ]);
     }
 

@@ -1,4 +1,5 @@
 <?php
+
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -14,7 +15,7 @@ return new class extends Migration
             $table->string('cor')->default('#6c757d'); // Nova coluna para a cor (default: cinza Bootstrap)
             $table->timestamps();
         });
-    
+
         // Inserir os status padrão com cores
         DB::table('status_pedido')->insert([
             ['descricao' => 'pendente',     'cor' => '#ffc107', 'created_at' => now(), 'updated_at' => now()], // amarelo
@@ -24,6 +25,7 @@ return new class extends Migration
             ['descricao' => 'atrasado',     'cor' => '#fd7e14', 'created_at' => now(), 'updated_at' => now()], // laranja
             ['descricao' => 'aguardando',   'cor' => '#6f42c1', 'created_at' => now(), 'updated_at' => now()], // roxo
             ['descricao' => 'recusado',     'cor' => '#6c757d', 'created_at' => now(), 'updated_at' => now()], // cinza
+            ['descricao' => 'aceito',       'cor' => '#28a745', 'created_at' => now(), 'updated_at' => now()], // verde escuro (confirmação)
         ]);
     }
     public function down(): void

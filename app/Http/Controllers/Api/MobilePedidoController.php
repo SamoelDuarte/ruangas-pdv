@@ -44,7 +44,7 @@ class MobilePedidoController extends Controller
         $motivo = $request->input('motivo');
 
         // Valida status permitido
-        $statusPermitidos = ['em andamento', 'recusado', 'cancelado'];
+        $statusPermitidos = ['aceito', 'recusado', 'cancelado'];
         if (!in_array($status, $statusPermitidos)) {
             return response()->json(['erro' => 'Status inválido'], 400);
         }

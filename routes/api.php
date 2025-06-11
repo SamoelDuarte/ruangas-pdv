@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\MobileAuthController;
 use App\Http\Controllers\Api\MobilePedidoController;
+use App\Http\Controllers\Api\MobileProdutoController;
 use App\Http\Controllers\Api\MobileUsuarioController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -32,6 +33,10 @@ Route::prefix('mobile')->group(function () {
         Route::prefix('pedidos')->controller(MobilePedidoController::class)->group(function () {
             Route::get('/{usuario_id}', 'listarPedidos');
             Route::put('/{id}/status', 'atualizarStatus');
+        });
+
+        Route::prefix('produtos')->controller(MobileProdutoController::class)->group(function () {
+            Route::get('/', 'listar');
         });
 
         Route::get('/usuario/{usuario_id}', [MobileUsuarioController::class, 'verificaUsuario']);

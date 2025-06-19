@@ -14,7 +14,7 @@ class MobileClienteController extends Controller
     public function getCliente(Request $request): JsonResponse
     {
         $telefone = $request->query('telefone');
-        dd($telefone);
+
         if (!$telefone) {
             return response()->json(['erro' => 'Telefone não informado'], 400);
         }

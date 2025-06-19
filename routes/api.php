@@ -41,8 +41,9 @@ Route::prefix('mobile')->group(function () {
         });
 
         Route::prefix('clientes')->controller(MobileClienteController::class)->group(function () {
-            Route::get('/', 'getCliente'); // Ex: /api/mobile/clientes?telefone=11999998888
+            Route::post('/', 'getCliente'); // agora espera o telefone via POST
         });
+
 
         Route::get('/usuario/{usuario_id}', [MobileUsuarioController::class, 'verificaUsuario']);
     });

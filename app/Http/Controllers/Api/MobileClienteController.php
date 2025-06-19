@@ -13,20 +13,15 @@ class MobileClienteController extends Controller
 
     public function getCliente(Request $request): JsonResponse
     {
-        $telefone = $request->query('telefone');
+        $telefone = $request->input('telefone');
 
         if (!$telefone) {
             return response()->json(['erro' => 'Telefone não informado'], 400);
         }
 
-        // Limpa o telefone (só números)
-        $telefoneLimpo = preg_replace('/\D/', '', $telefone);
-
-        // Codifica com base64
-        $telefoneCodificado = base64_encode($telefoneLimpo);
-
-        // Busca no banco
-        $cliente = Cliente::where('telefone', $telefoneCodificado)->first();
+        $cliente = Cliente::all()->filter(function ($c) use ($telefone) {
+            return base64_decode($c->telefone) === preg_replace('/\D/', '', $telefone);
+        })->first();
 
         if (!$cliente) {
             return response()->json(['erro' => 'Cliente não encontrado'], 404);

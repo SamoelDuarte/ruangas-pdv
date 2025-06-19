@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\MobileAuthController;
+use App\Http\Controllers\Api\MobileClienteController;
 use App\Http\Controllers\Api\MobilePedidoController;
 use App\Http\Controllers\Api\MobileProdutoController;
 use App\Http\Controllers\Api\MobileUsuarioController;
@@ -37,6 +38,10 @@ Route::prefix('mobile')->group(function () {
 
         Route::prefix('produtos')->controller(MobileProdutoController::class)->group(function () {
             Route::get('/', 'listar');
+        });
+
+        Route::prefix('clientes')->controller(MobileClienteController::class)->group(function () {
+            Route::get('/', 'getCliente'); // Ex: /api/mobile/clientes?telefone=11999998888
         });
 
         Route::get('/usuario/{usuario_id}', [MobileUsuarioController::class, 'verificaUsuario']);

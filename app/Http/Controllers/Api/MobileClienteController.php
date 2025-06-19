@@ -18,11 +18,11 @@ class MobileClienteController extends Controller
         if (!$telefone) {
             return response()->json(['erro' => 'Telefone não informado'], 400);
         }
-    dd($telefone);
+   
         $cliente = Cliente::all()->filter(function ($c) use ($telefone) {
             return base64_decode($c->telefone) === preg_replace('/\D/', '', $telefone);
         })->first();
-
+ dd($cliente);
         if (!$cliente) {
             return response()->json(['erro' => 'Cliente não encontrado'], 404);
         }

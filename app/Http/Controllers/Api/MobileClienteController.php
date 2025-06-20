@@ -32,4 +32,25 @@ class MobileClienteController extends Controller
 
         return response()->json($cliente);
     }
+
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'nome' => 'required|string',
+            'telefone' => 'required|string',
+            'logradouro' => 'nullable|string',
+            'numero' => 'nullable|string',
+            'bairro' => 'nullable|string',
+            'cidade' => 'nullable|string',
+            'cep' => 'nullable|string',
+            'complemento' => 'nullable|string',
+            'referencia' => 'nullable|string',
+            'observacao' => 'nullable|string',
+            'data_nascimento' => 'nullable|date',
+        ]);
+
+        $cliente = Cliente::create($validated);
+
+        return response()->json($cliente, 201);
+    }
 }

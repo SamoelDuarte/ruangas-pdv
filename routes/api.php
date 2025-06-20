@@ -42,6 +42,7 @@ Route::prefix('mobile')->group(function () {
 
         Route::prefix('clientes')->controller(MobileClienteController::class)->group(function () {
             Route::post('/', 'getCliente'); // agora espera o telefone via POST
+            Route::post('/salvar', 'store'); // agora espera o telefone via POST
         });
 
 

@@ -34,6 +34,7 @@ Route::prefix('mobile')->group(function () {
         Route::prefix('pedidos')->controller(MobilePedidoController::class)->group(function () {
             Route::get('/{usuario_id}', 'listarPedidos');
             Route::put('/{id}/status', 'atualizarStatus');
+            Route::post('/salva', 'store');
         });
 
         Route::prefix('produtos')->controller(MobileProdutoController::class)->group(function () {

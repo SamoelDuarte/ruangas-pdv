@@ -133,12 +133,12 @@ class MobilePedidoController extends Controller
                 'desconto'            => $dados['desconto'] ?? 0,
                 'notifica_mensagem'   => $dados['notifica_mensagem'] ?? false,
                 'cliente_id'          => $cliente->id,
-                'status_pedido_id'    => 6, // Status inicial
+                'status_pedido_id'    => 3, // Status inicial
             ]);
 
             \App\Models\HistoricoStatusPedido::create([
                 'pedido_id'   => $pedido->id,
-                'status'      => 2,
+                'status'      => 3,
                 'mudanca_por' => $dados['usuario_id'],
             ]);
 

@@ -149,7 +149,10 @@
 
                     // Botão de entregador
                     let entregador = '';
-                    if (!isFinalizadoOuCancelado) {
+                    if (isFinalizadoOuCancelado) {
+                        // Se finalizado ou cancelado, mostra o nome do entregador (ou vazio) sem botão clicável
+                        entregador = pedido.entregador ? pedido.entregador.nome : '';
+                    } else {
                         let entregadorBtnTexto = '';
 
                         if (pedido.entregador) {
@@ -163,10 +166,11 @@
                         }
 
                         entregador = `
-                <button class="btn btn-sm btn-outline-primary selecionar-entregador" data-id="${pedido.id}" title="Selecionar ou alterar entregador/tipo">
-                    ${entregadorBtnTexto}
-                </button>`;
+        <button class="btn btn-sm btn-outline-primary selecionar-entregador" data-id="${pedido.id}" title="Selecionar ou alterar entregador/tipo">
+            ${entregadorBtnTexto}
+        </button>`;
                     }
+
 
                     // Botão de situação
                     const cor = pedido.status_pedido?.cor ?? '#0d6efd';
@@ -419,83 +423,86 @@
                     });
             });
             document.addEventListener('click', function(e) {
-            if (e.target.closest('.btn-situacao')) {
-                const btn = e.target.closest('.btn-situacao');
-                const statusId = btn.dataset.id;
-                const pedidoId = document.getElementById('pedido_id_situacao').value;
+                if (e.target.closest('.btn-situacao')) {
+                    const btn = e.target.closest('.btn-situacao');
+                    const statusId = btn.dataset.id;
+                    const pedidoId = document.getElementById('pedido_id_situacao').value;
 
-                fetch(`/pedido/${pedidoId}/alterar-situacao`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-                        },
-                        body: JSON.stringify({
-                            status_pedido_id: statusId
+                    fetch(`/pedido/${pedidoId}/alterar-situacao`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')
+                                    .content
+                            },
+                            body: JSON.stringify({
+                                status_pedido_id: statusId
+                            })
                         })
-                    })
-                    .then(res => res.json())
-                    .then(res => {
-                        $('#modalSituacao').modal('hide');
+                        .then(res => res.json())
+                        .then(res => {
+                            $('#modalSituacao').modal('hide');
 
-                        // Atualiza só o botão da tabela
-                        const btnTabela = document.querySelector(`.alterar-situacao[data-id='${pedidoId}']`);
-                        if (btnTabela) {
-                            btnTabela.textContent = res.descricao;
-                            btnTabela.style.backgroundColor = res.cor;
-                            btnTabela.style.color = 'white';
-                            btnTabela.style.border = 'none';
-                        }
-                        carregarPedidos();
-                    })
-                    .catch(erro => {
-                        console.error('Erro ao alterar situação:', erro);
-                    });
-            }
-        });
-        document.addEventListener('click', function(e) {
-            if (e.target.closest('.entregador-opcao')) {
-                const btn = e.target.closest('.entregador-opcao');
-                const entregadorId = btn.dataset.entregadorId;
-                const pedidoId = document.getElementById('pedido_id_entregador').value;
-
-                // Agora envia para o backend: atualizar entregador + mudar status para 2 (em andamento)
-                fetch(`/pedido/${pedidoId}/atribuir-entregador`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-                        },
-                        body: JSON.stringify({
-                            entregador_id: entregadorId
+                            // Atualiza só o botão da tabela
+                            const btnTabela = document.querySelector(
+                                `.alterar-situacao[data-id='${pedidoId}']`);
+                            if (btnTabela) {
+                                btnTabela.textContent = res.descricao;
+                                btnTabela.style.backgroundColor = res.cor;
+                                btnTabela.style.color = 'white';
+                                btnTabela.style.border = 'none';
+                            }
+                            carregarPedidos();
                         })
-                    })
-                    .then(res => res.json())
-                    .then(res => {
-                        $('#modalSelecionarEntregador').modal('hide');
+                        .catch(erro => {
+                            console.error('Erro ao alterar situação:', erro);
+                        });
+                }
+            });
+            document.addEventListener('click', function(e) {
+                if (e.target.closest('.entregador-opcao')) {
+                    const btn = e.target.closest('.entregador-opcao');
+                    const entregadorId = btn.dataset.entregadorId;
+                    const pedidoId = document.getElementById('pedido_id_entregador').value;
 
-                        // Atualiza o botão de entregador na tabela
-                        const btnTabela = document.querySelector(
-                            `.selecionar-entregador[data-id='${pedidoId}']`);
-                        if (btnTabela) {
-                            btnTabela.outerHTML = res.entregador_nome;
-                        }
+                    // Agora envia para o backend: atualizar entregador + mudar status para 2 (em andamento)
+                    fetch(`/pedido/${pedidoId}/atribuir-entregador`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')
+                                    .content
+                            },
+                            body: JSON.stringify({
+                                entregador_id: entregadorId
+                            })
+                        })
+                        .then(res => res.json())
+                        .then(res => {
+                            $('#modalSelecionarEntregador').modal('hide');
 
-                        // Atualiza o botão da situação na tabela
-                        const btnSituacao = document.querySelector(`.alterar-situacao[data-id='${pedidoId}']`);
-                        if (btnSituacao) {
-                            btnSituacao.textContent = res.status_descricao;
-                            btnSituacao.style.backgroundColor = res.status_cor;
-                            btnSituacao.style.color = 'white';
-                            btnSituacao.style.border = 'none';
-                        }
-                    })
-                    .catch(erro => {
-                        console.error('Erro ao atribuir entregador:', erro);
-                    });
-            }
+                            // Atualiza o botão de entregador na tabela
+                            const btnTabela = document.querySelector(
+                                `.selecionar-entregador[data-id='${pedidoId}']`);
+                            if (btnTabela) {
+                                btnTabela.outerHTML = res.entregador_nome;
+                            }
+
+                            // Atualiza o botão da situação na tabela
+                            const btnSituacao = document.querySelector(
+                                `.alterar-situacao[data-id='${pedidoId}']`);
+                            if (btnSituacao) {
+                                btnSituacao.textContent = res.status_descricao;
+                                btnSituacao.style.backgroundColor = res.status_cor;
+                                btnSituacao.style.color = 'white';
+                                btnSituacao.style.border = 'none';
+                            }
+                        })
+                        .catch(erro => {
+                            console.error('Erro ao atribuir entregador:', erro);
+                        });
+                }
+            });
         });
-        });
-       
     </script>
 @endsection

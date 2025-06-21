@@ -129,6 +129,7 @@ class MobilePedidoController extends Controller
                 'motivo_cancelamento' => $dados['motivo_cancelamento'] ?? null,
                 'mensagem'            => $dados['mensagem'] ?? null,
                 'valor_total'         => $dados['total'],
+                'entregador_id'        => $dados['usuario_id'],
                 'desconto'            => $dados['desconto'] ?? 0,
                 'notifica_mensagem'   => $dados['notifica_mensagem'] ?? false,
                 'cliente_id'          => $cliente->id,
@@ -137,8 +138,8 @@ class MobilePedidoController extends Controller
 
             \App\Models\HistoricoStatusPedido::create([
                 'pedido_id'   => $pedido->id,
-                'status'      => 1,
-                'mudanca_por' => 'App Mobile',
+                'status'      => 2,
+                'mudanca_por' => $dados['usuario_id'],
             ]);
 
             foreach ($dados['produtos'] as $item) {

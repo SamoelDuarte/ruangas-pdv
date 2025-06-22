@@ -30,21 +30,23 @@ class WebhookController extends Controller
             $numero = substr($numero, 2);
         }
         // Codifica o número como está salvo no banco
-    $numeroCodificado = base64_encode($numero);
+        $numeroCodificado = base64_encode($numero);
         // dd($numero);
         // Busca cliente pelo telefone
         $cliente = Cliente::where('telefone', 'like', "%$numeroCodificado")->first();
+        if(!$cliente){
+            exit;
+        }
 
-        
 
         // Busca pedido com status 8
         $pedido = Pedido::where('cliente_id', $cliente->id)
-            ->where('status', 8)
+            ->where('status_pedido_id', 8)
             ->orderByDesc('id')
             ->first();
 
-        
-        dd($pedido);
+
+        // dd($pedido);
 
         return response()->json(['status' => 'ok']);
     }

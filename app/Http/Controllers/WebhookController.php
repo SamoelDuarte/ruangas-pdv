@@ -32,9 +32,7 @@ class WebhookController extends Controller
         // Busca cliente pelo telefone
         $cliente = Cliente::where('telefone', 'like', "%$numero")->first();
 
-        if (!$cliente) {
-            return response()->json(['erro' => 'Cliente não encontrado'], 404);
-        }
+        
 
         // Busca pedido com status 8
         $pedido = Pedido::where('cliente_id', $cliente->id)
@@ -42,9 +40,7 @@ class WebhookController extends Controller
             ->orderByDesc('id')
             ->first();
 
-        if (!$pedido) {
-            return response()->json(['erro' => 'Pedido com status 8 não encontrado'], 404);
-        }
+        
         dd($pedido);
 
         return response()->json(['status' => 'ok']);

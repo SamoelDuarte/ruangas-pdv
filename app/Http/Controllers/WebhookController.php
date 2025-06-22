@@ -6,13 +6,12 @@ use App\Models\Cliente;
 use App\Models\Messagen;
 use App\Models\Pedido;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 
 class WebhookController extends Controller
 {
     public function evento(Request $request)
     {
-        
+
         // Lê o corpo cru da requisição
         $raw = $request->getContent();
 
@@ -20,7 +19,6 @@ class WebhookController extends Controller
         $data = json_decode($raw, true);
 
         if (json_last_error() !== JSON_ERROR_NONE) {
-            Log::warning('JSON inválido recebido no webhook.', ['body' => $raw]);
             return response()->json(['erro' => 'JSON inválido'], 400);
         }
 
@@ -28,7 +26,6 @@ class WebhookController extends Controller
         $mensagemTexto = $data['data']['message']['conversation'] ?? null;
 
         if (!$numeroCompleto || !$mensagemTexto) {
-            Log::warning('Dados incompletos no webhook.', ['data' => $data]);
             return response()->json(['erro' => 'Dados incompletos'], 422);
         }
 
@@ -43,7 +40,6 @@ class WebhookController extends Controller
 
         $cliente = Cliente::where('telefone', 'like', "%$numeroCodificado")->first();
         if (!$cliente) {
-            Log::info("Cliente não encontrado para número: $numeroCodificado");
             return response()->json(['erro' => 'Cliente não encontrado'], 404);
         }
 
@@ -53,7 +49,7 @@ class WebhookController extends Controller
             ->first();
 
         if (!$pedido) {
-            Log::info("Pedido com status 8 não encontrado para cliente ID {$cliente->id}");
+         
             return response()->json(['erro' => 'Pedido não encontrado'], 404);
         }
 
@@ -65,12 +61,7 @@ class WebhookController extends Controller
         $mensagem->enviado = true;
         $mensagem->save();
 
-        Log::info("Mensagem salva com sucesso", [
-            'pedido_id' => $pedido->id,
-            'cliente_id' => $cliente->id,
-            'mensagem' => $mensagemTexto
-        ]);
-
+       
         return response()->json(['status' => 'ok']);
     }
 }

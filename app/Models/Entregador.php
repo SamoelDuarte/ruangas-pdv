@@ -45,4 +45,10 @@ class Entregador extends Model
             }])
             ->get();
     }
+
+    // Relação com mensagens enviadas
+    public function mensagens()
+    {
+        return $this->hasMany(Messagen::class, 'usuario_id');
+    }
 }

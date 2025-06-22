@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Cliente;
+use App\Models\Messagen;
 use App\Models\Pedido;
 use Illuminate\Http\Request;
 
@@ -45,18 +46,19 @@ class WebhookController extends Controller
             ->orderByDesc('id')
             ->first();
 
- dd($pedido);
+        // dd($pedido);
         // Salva a mensagem recebida
         $mensagem = new Messagen();
         $mensagem->pedido_id = $pedido->id;
         $mensagem->cliente_id = $cliente->id;
-        $mensagem->messagem = $mensagemTexto;
+        $mensagem->usuario_id = $pedido->entregador_id;
+        $mensagem->messagem = $mensagem;
         $mensagem->direcao = 'recebido';
         $mensagem->enviado = true;
         $mensagem->save();
 
 
-       
+
 
         return response()->json(['status' => 'ok']);
     }

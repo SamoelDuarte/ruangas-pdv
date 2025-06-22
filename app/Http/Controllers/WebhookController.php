@@ -12,12 +12,7 @@ class WebhookController extends Controller
 {
     public function evento(Request $request)
     {
-        Log::info('Webhook recebido.', [
-            'raw' => $request->getContent(),
-            'headers' => $request->headers->all(),
-            'method' => $request->method()
-        ]);
-
+       
         // Lê o conteúdo JSON
         $raw = file_get_contents("php://input");
          Log::info('Webhook recebido.', $raw);

@@ -78,7 +78,7 @@ class CronController extends Controller
 
             Log::info("Mensagem ID {$mensagem->id} enviada com status {$statusCode}: {$bodyResponse}");
 
-            return $statusCode === 200;
+            return true;
         } catch (\Exception $e) {
             Log::error("Erro ao enviar mensagem ID {$mensagem->id}: " . $e->getMessage());
             return false;

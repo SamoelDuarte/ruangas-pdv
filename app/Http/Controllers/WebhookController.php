@@ -29,6 +29,7 @@ class WebhookController extends Controller
         if (str_starts_with($numero, '55')) {
             $numero = substr($numero, 2);
         }
+        dd($numero);
         // Busca cliente pelo telefone
         $cliente = Cliente::where('telefone', 'like', "%$numero")->first();
 

@@ -42,7 +42,7 @@ class CronController extends Controller
                 $nomeEntregador = $mensagem->entregador->nome;
                 $textoOriginal = $mensagem->messagem;
 
-                $mensagemFormatada = 'Mensagem Entregador ('.$nomeEntregador.')\n$textoOriginal';
+                $mensagemFormatada = 'Mensagem Entregador ('.$nomeEntregador.') \n '.$textoOriginal.'';
 
                 $headers = [
                     'Content-Type' => 'application/json',

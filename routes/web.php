@@ -44,8 +44,10 @@ Route::get('/whoami', function () {
     return response()->json(['user' => exec('whoami')]);
 });
 
-Route::post('/webhook', [WebhookController::class, 'evento']);
-
+Route::post('/webhook', [WebhookController::class, 'evento'])->withoutMiddleware([
+    \App\Http\Middleware\VerifyCsrfToken::class,
+    \App\Http\Middleware\Authenticate::class,
+]);
 Route::prefix('/cron')->controller(CronController::class)->group(function () {
     Route::get('/enviarMensagem', 'enviarPendentes');
 });

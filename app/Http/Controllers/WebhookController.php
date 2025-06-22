@@ -12,6 +12,29 @@ class WebhookController extends Controller
 {
     public function evento(Request $request)
     {
+        Log::info('Webhook recebido.', [
+            'raw' => $request->getContent(),
+            'headers' => $request->headers->all(),
+            'method' => $request->method()
+        ]);
+
+        $raw = $request->getContent();
+
+        $data = json_decode($raw, true);
+
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            Log::warning('JSON inválido recebido no webhook.', ['body' => $raw]);
+            return response()->json(['erro' => 'JSON inválido'], 400);
+        }
+
+        $numeroCompleto = $data['data']['key']['remoteJid'] ?? null;
+        $mensagemTexto = $data['data']['message']['conversation'] ?? null;
+
+        if (!$numeroCompleto || !$mensagemTexto) {
+            Log::warning('Dados incompletos no webhook.', ['data' => $data]);
+            return response()->json(['erro' => 'Dados incompletos'], 422);
+        }
+
         // Lê o corpo cru da requisição
         $raw = $request->getContent();
 

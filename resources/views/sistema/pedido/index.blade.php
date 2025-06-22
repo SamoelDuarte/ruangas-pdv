@@ -166,9 +166,9 @@
                         }
 
                         entregador = `
-        <button class="btn btn-sm btn-outline-primary selecionar-entregador" data-id="${pedido.id}" title="Selecionar ou alterar entregador/tipo">
-            ${entregadorBtnTexto}
-        </button>`;
+                                <button class="btn btn-sm btn-outline-primary selecionar-entregador" data-id="${pedido.id}" title="Selecionar ou alterar entregador/tipo">
+                                    ${entregadorBtnTexto}
+                                </button>`;
                     }
 
 
@@ -177,13 +177,13 @@
                     const texto = pedido.status_pedido?.descricao ?? 'Alterar';
 
                     const situacao = `
-            <button class="btn btn-sm text-white alterar-situacao"
-                style="background-color: ${cor}; border: none;"
-                data-id="${pedido.id}" 
-                title="Alterar situação"
-                ${isFinalizadoOuCancelado ? 'disabled' : ''}>
-                <i class="fas fa-exchange-alt me-1"></i> ${texto}
-            </button>`;
+                            <button class="btn btn-sm text-white alterar-situacao"
+                                style="background-color: ${cor}; border: none;"
+                                data-id="${pedido.id}" 
+                                title="Alterar situação"
+                                ${isFinalizadoOuCancelado ? 'disabled' : ''}>
+                                <i class="fas fa-exchange-alt me-1"></i> ${texto}
+                            </button>`;
 
                     // Endereço
                     let endereco = `${pedido.cliente.logradouro ?? ''}, ${pedido.cliente.numero ?? ''}`;
@@ -192,8 +192,8 @@
                     endereco += pedido.cliente.cidade ? ` - ${pedido.cliente.cidade}` : '';
 
                     const clienteInfo = `
-            <strong>${pedido.cliente.nome}</strong><br>
-            ${endereco}`;
+                                        ido.cliente.nome}</strong><br>
+                                        ${endereco}`;
 
                     // Botões de ação
                     let acoes = '';

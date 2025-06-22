@@ -24,9 +24,10 @@ class MobileMensagemController extends Controller
             'pedido_id' => 'required|integer',
             'device_id' => 'nullable|integer',
             'usuario_id' => 'nullable|integer',
-            'texto' => 'required|string',
+            'messagem' => 'required|string',  // aqui troca texto por messagem
             'direcao' => 'required|in:enviado,recebido',
         ]);
+
 
         $mensagem = Messagen::create($data);
 

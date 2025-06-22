@@ -50,7 +50,6 @@ class WebhookController extends Controller
         // Salva a mensagem recebida
         $mensagem = new Messagen();
         $mensagem->pedido_id = $pedido->id;
-        $mensagem->cliente_id = $cliente->id;
         $mensagem->usuario_id = $pedido->entregador_id;
         $mensagem->messagem = $mensagem;
         $mensagem->direcao = 'recebido';

@@ -41,8 +41,16 @@ class CronController extends Controller
                 $numero = $mensagem->pedido->cliente->telefone;
                 $nomeEntregador = $mensagem->entregador->nome;
                 $textoOriginal = $mensagem->messagem;
+                $text = 'Olá! 👋 É sempre um prazer ter você com a gente! 😊\n\n'
+                    . 'Notamos que você deixou alguns produtos no carrinho e não queremos que você perca essas ofertas incríveis! 🛒\n\n'
+                    . '📋 *Resumo do seu carrinho:*\n'
+                    . '\n'
+                    . '💰 *Total:* ' . '\n'
+                    . '🛍️ Para finalizar sua compra, é só clicar no link abaixo:\n'
+                    . '🔗 '  . '\n'
+                    . 'Fácil, rápido e prático! 🚀 Não perca essa chance de garantir seus produtos favoritos! 😊';
 
-                $mensagemFormatada = 'Mensagem Entregador ('.$nomeEntregador.') \n '.$textoOriginal.'';
+                $mensagemFormatada = 'Mensagem Entregador (' . $nomeEntregador . ') \n ' . $textoOriginal . '';
 
                 $headers = [
                     'Content-Type' => 'application/json',
@@ -50,8 +58,8 @@ class CronController extends Controller
                 ];
 
                 $body = json_encode([
-                    'number' => '55'.$numero,
-                    'text' => $mensagemFormatada
+                    'number' => '55' . $numero,
+                    'text' => $text
                 ]);
 
                 $url = "http://147.79.111.119:8080/message/sendText/{$mensagem->device->session}";

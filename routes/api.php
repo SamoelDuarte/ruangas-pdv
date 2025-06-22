@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\MobileAuthController;
 use App\Http\Controllers\Api\MobileClienteController;
+use App\Http\Controllers\Api\MobileMensagemController;
 use App\Http\Controllers\Api\MobilePedidoController;
 use App\Http\Controllers\Api\MobileProdutoController;
 use App\Http\Controllers\Api\MobileUsuarioController;

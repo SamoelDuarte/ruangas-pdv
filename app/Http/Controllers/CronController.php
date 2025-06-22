@@ -18,11 +18,11 @@ class CronController extends Controller
     public function enviarPendentes()
     {
         // Busca até 20 mensagens não enviadas
-        $mensagens = Messagen::where('enviado', false)
+        $mensagens = Messagen::where('enviado', false)->where('direcao', 'enviado')
             ->with(['pedido.cliente', 'device', 'entregador'])
             ->limit(20)
             ->get();
-        dd( $mensagens);
+        // dd( $mensagens);
         $client = new Client();
 
         foreach ($mensagens as $mensagem) {
@@ -50,7 +50,7 @@ class CronController extends Controller
                 ];
 
                 $body = json_encode([
-                    'number' => $numero,
+                    'number' => '55'.$numero,
                     'text' => $mensagemFormatada
                 ]);
 

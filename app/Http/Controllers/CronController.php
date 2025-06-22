@@ -19,9 +19,13 @@ class CronController extends Controller
     {
         $mensagens = Messagen::where('enviado', false)
             ->where('direcao', 'enviado')
+            ->whereHas('pedido', function ($query) {
+                $query->where('status_pedido_id', 8);
+            })
             ->with(['pedido.cliente', 'device', 'entregador'])
             ->limit(20)
             ->get();
+
 
         foreach ($mensagens as $mensagem) {
             // Validação mínima

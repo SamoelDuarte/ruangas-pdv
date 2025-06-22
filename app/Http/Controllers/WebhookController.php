@@ -23,7 +23,7 @@ class WebhookController extends Controller
 
         // Agora você pode acessar $data['sender'], $data['data']['message']['conversation'], etc.
         $numeroCompleto = $data['sender'] ?? null;
-        $mensagem = $data['data']['message']['conversation'] ?? null;
+        $mensagemTexto = $data['data']['message']['conversation'] ?? null;
 
         // Remove prefixo "55" e "@s.whatsapp.net"
         $numero = preg_replace('/[^0-9]/', '', $numeroCompleto);
@@ -51,7 +51,7 @@ class WebhookController extends Controller
         $mensagem = new Messagen();
         $mensagem->pedido_id = $pedido->id;
         $mensagem->usuario_id = $pedido->entregador_id;
-        $mensagem->messagem = $mensagem;
+        $mensagem->messagem = $mensagemTexto;
         $mensagem->direcao = 'recebido';
         $mensagem->enviado = true;
         $mensagem->save();

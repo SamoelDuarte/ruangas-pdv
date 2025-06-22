@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Messagen;
-use Illuminate\Http\Client\Request;
+use Illuminate\Http\Request;
+
+
 
 class MobileMensagemController extends Controller
 {

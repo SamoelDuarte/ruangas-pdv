@@ -34,7 +34,7 @@ class WebhookController extends Controller
         // dd($numero);
         // Busca cliente pelo telefone
         $cliente = Cliente::where('telefone', 'like', "%$numeroCodificado")->first();
-        if(!$cliente){
+        if (!$cliente) {
             exit;
         }
 
@@ -45,8 +45,18 @@ class WebhookController extends Controller
             ->orderByDesc('id')
             ->first();
 
+ dd($pedido);
+        // Salva a mensagem recebida
+        $mensagem = new Messagen();
+        $mensagem->pedido_id = $pedido->id;
+        $mensagem->cliente_id = $cliente->id;
+        $mensagem->messagem = $mensagemTexto;
+        $mensagem->direcao = 'recebido';
+        $mensagem->enviado = true;
+        $mensagem->save();
 
-        // dd($pedido);
+
+       
 
         return response()->json(['status' => 'ok']);
     }

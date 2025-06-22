@@ -60,4 +60,8 @@ class Messagen extends Model
     {
         return date('d/m/Y H:i', strtotime($this->created_at));
     }
+    public function getImageIdAttribute()
+{
+    return $this->attributes['image_id'] ?? null;
+}
 }

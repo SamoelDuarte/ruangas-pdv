@@ -44,7 +44,7 @@ Route::get('/whoami', function () {
     return response()->json(['user' => exec('whoami')]);
 });
 
-Route::post('/webhook', [WebhookController::class, 'evento']);
+Route::get('/webhook', [WebhookController::class, 'evento']);
 
 Route::prefix('/cron')->controller(CronController::class)->group(function () {
     Route::get('/enviarMensagem', 'enviarPendentes');

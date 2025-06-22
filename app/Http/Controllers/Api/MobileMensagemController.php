@@ -21,26 +21,29 @@ class MobileMensagemController extends Controller
     {
         $data = $request->validate([
             'pedido_id' => 'required|integer',
-            'device_id' => 'nullable|integer',
             'usuario_id' => 'nullable|integer',
             'messagem' => 'required|string',
             'direcao' => 'required|in:enviado,recebido',
         ]);
 
-        // Verifica se já tem mensagens com esse pedido
-        $mensagensExistentes = Messagen::where('pedido_id', $data['pedido_id'])->exists();
+        // Verifica se já tem um chat para esse pedido
+        $chat = DB::table('chats')->where('pedido_id', $data['pedido_id'])->first();
 
-        // Se for a primeira mensagem, seleciona um device aleatório
-        if (!$mensagensExistentes) {
-            $device = Device::inRandomOrder()->where('status', 'open')->first(); // pega um ativo aleatório
+        if ($chat) {
+            $data['device_id'] = $chat->device_id; // usa o mesmo device
+        } else {
+            // Sorteia um device ativo
+            $device = Device::inRandomOrder()->where('status', 'open')->first();
             if ($device) {
                 $data['device_id'] = $device->id;
             }
         }
 
-        // Cria a mensagem
         $mensagem = Messagen::create($data);
 
-        return response()->json(['mensagem' => 'Mensagem enviada com sucesso', 'data' => $mensagem]);
+        return response()->json([
+            'mensagem' => 'Mensagem enviada com sucesso',
+            'data' => $mensagem
+        ]);
     }
 }

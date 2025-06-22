@@ -44,6 +44,11 @@ Route::get('/whoami', function () {
 });
 
 
+ Route::prefix('/cron')->controller(CronController::class)->group(function () {
+        Route::get('/enviarMensagem', [CronController::class, 'enviarPendentes']);
+    });
+
+
 Route::get('/sorteio/{hash}', [SorteioController::class, 'cliente'])->name('sorteio.cliente');
 Route::post('/sorteio/{id}/salvar', [SorteioController::class, 'salvarNumeroSorte'])->name('sorteio.salvarNumeroSorte');
 

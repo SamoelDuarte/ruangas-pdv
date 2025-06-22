@@ -10,10 +10,12 @@ class GitWebhookController extends Controller
     {
         $output = null;
         $returnVar = null;
-        
+
         $projectPath = base_path();
 
-        exec("cd {$projectPath} && git reset --hard && git clean -fd && git pull origin main 2>&1", $output, $returnVar);
+        $cmd = "cd {$projectPath} && /usr/bin/git reset --hard && /usr/bin/git clean -fd && /usr/bin/git pull origin main 2>&1";
+        exec($cmd, $output, $returnVar);
+
 
         if ($returnVar !== 0) {
             return response()->json([

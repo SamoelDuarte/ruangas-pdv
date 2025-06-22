@@ -22,7 +22,7 @@ class CronController extends Controller
             ->with(['pedido.cliente', 'device', 'entregador'])
             ->limit(20)
             ->get();
-        dd('foi');
+        dd('foiwww');
         $client = new Client();
 
         foreach ($mensagens as $mensagem) {

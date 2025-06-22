@@ -23,7 +23,7 @@ class WebhookController extends Controller
             return response()->json(['erro' => 'JSON inválido'], 400);
         }
 
-        $numeroCompleto = $data['sender'] ?? null;
+        $numeroCompleto = $data['data']['key']['remoteJid'] ?? null;
         $mensagemTexto = $data['data']['message']['conversation'] ?? null;
 
         if (!$numeroCompleto || !$mensagemTexto) {

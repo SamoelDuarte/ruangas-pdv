@@ -18,8 +18,9 @@ class WebhookController extends Controller
             'method' => $request->method()
         ]);
 
-        $raw = $request->getContent();
-
+        // Lê o conteúdo JSON
+        $raw = file_get_contents("php://input");
+         Log::info('Webhook recebido.', $raw);
         $data = json_decode($raw, true);
 
         if (json_last_error() !== JSON_ERROR_NONE) {

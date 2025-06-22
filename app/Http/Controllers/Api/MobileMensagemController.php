@@ -28,7 +28,6 @@ class MobileMensagemController extends Controller
 
         // Verifica se já tem um chat para esse pedido
         $chat = DB::table('chats')->where('pedido_id', $data['pedido_id'])->first();
-
         if ($chat) {
             $data['device_id'] = $chat->device_id; // usa o mesmo device
         } else {

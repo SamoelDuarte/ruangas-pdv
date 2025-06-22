@@ -54,7 +54,7 @@ class CronController extends Controller
                     'text' => $mensagemFormatada
                 ]);
 
-                $url = "http://147.79.111.119:8080/message/sendText/{$mensagem->device->uuid}";
+                $url = "http://147.79.111.119:8080/message/sendText/{$mensagem->device->session}";
 
                 $request = new Request('POST', $url, $headers, $body);
 

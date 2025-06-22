@@ -16,6 +16,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\UsuarioController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\GitWebhookController;
+use App\Http\Controllers\WebhookController;
 use Illuminate\Http\Request;
 
 /*
@@ -43,6 +44,7 @@ Route::get('/whoami', function () {
     return response()->json(['user' => exec('whoami')]);
 });
 
+Route::post('/webhook', [WebhookController::class, 'evento']);
 
 Route::prefix('/cron')->controller(CronController::class)->group(function () {
     Route::get('/enviarMensagem', 'enviarPendentes');

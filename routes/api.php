@@ -46,6 +46,14 @@ Route::prefix('mobile')->group(function () {
             Route::post('/salvar', 'store'); // agora espera o telefone via POST
         });
 
+        Route::prefix('mensagens')->controller(MobileMensagemController::class)->group(function () {
+        // Listar mensagens de um pedido
+        Route::get('/{pedido_id}', 'listarMensagens');
+
+        // Enviar nova mensagem (POST)
+        Route::post('/enviar', 'enviarMensagem');
+    });
+
 
         Route::get('/usuario/{usuario_id}', [MobileUsuarioController::class, 'verificaUsuario']);
     });

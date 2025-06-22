@@ -29,9 +29,11 @@ class WebhookController extends Controller
         if (str_starts_with($numero, '55')) {
             $numero = substr($numero, 2);
         }
-        dd($numero);
+        // Codifica o número como está salvo no banco
+    $numeroCodificado = base64_encode($numero);
+        // dd($numero);
         // Busca cliente pelo telefone
-        $cliente = Cliente::where('telefone', 'like', "%$numero")->first();
+        $cliente = Cliente::where('telefone', 'like', "%$numeroCodificado")->first();
 
         
 

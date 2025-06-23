@@ -192,8 +192,8 @@
                     endereco += pedido.cliente.cidade ? ` - ${pedido.cliente.cidade}` : '';
 
                     const clienteInfo = `
-                                        ido.cliente.nome}</strong><br>
-                                        ${endereco}`;
+            <strong>${pedido.cliente.nome}</strong><br>
+            ${endereco}`;
 
                     // Botões de ação
                     let acoes = '';

@@ -174,6 +174,26 @@ class CronController extends Controller
             $numero = substr($numero, 2);
         }
 
+        // Função para detectar mimetype a partir da extensão
+        $getMimeTypeFromExtension = function ($extension) {
+            $extension = strtolower($extension);
+            return match ($extension) {
+                'png' => 'image/png',
+                'jpg', 'jpeg' => 'image/jpeg',
+                'gif' => 'image/gif',
+                'webp' => 'image/webp',
+                'bmp' => 'image/bmp',
+                default => 'image/png', // padrão para png caso não reconheça
+            };
+        };
+
+        // Extrair extensão da URL da imagem
+        $urlPath = parse_url($urlImagem, PHP_URL_PATH);
+        $ext = pathinfo($urlPath, PATHINFO_EXTENSION);
+
+        $mimetype = $getMimeTypeFromExtension($ext);
+        $fileName = 'imagem.' . $ext;
+
         $client = new \GuzzleHttp\Client();
         $url = "http://147.79.111.119:8080/message/sendMedia/{$session}";
 
@@ -185,10 +205,10 @@ class CronController extends Controller
         $body = json_encode([
             'number' => '55' . $numero,
             'mediatype' => 'image',
-            'mimetype' => 'image/png',
+            'mimetype' => $mimetype,
             'caption' => $descricao,
             'media' => $urlImagem,
-            'fileName' => 'imagem.png',
+            'fileName' => $fileName,
         ]);
 
         try {

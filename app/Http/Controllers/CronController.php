@@ -188,7 +188,6 @@ class CronController extends Controller
             'mimetype' => 'image/png',
             'caption' => $descricao,
             'media' => $urlImagem,
-            // 'media' => 'https://tse4.mm.bing.net/th/id/OIP.d12NjZNPV8a-M9de9YK6wAHaE8?r=0&rs=1&pid=ImgDetMain&o=7&rm=3',
             'fileName' => 'imagem.png',
         ]);
 

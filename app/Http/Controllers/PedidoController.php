@@ -116,8 +116,8 @@ class PedidoController extends Controller
     public function create()
     {
         $formasPagamento = FormaPagamento::all();
-
-        return view('sistema.pedido.create', compact('formasPagamento'));
+        $entregadoresTrabalhando = Entregador::entregadoresTrabalhandoHoje();
+        return view('sistema.pedido.create', compact('formasPagamento','entregadoresTrabalhando'));
     }
 
 

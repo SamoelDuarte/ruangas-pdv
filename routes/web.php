@@ -3,7 +3,9 @@
 use App\Http\Controllers\Api\MobileAuthController;
 use App\Http\Controllers\Api\MobilePedidoController;
 use App\Http\Controllers\Api\MobileUsuarioController;
+use App\Http\Controllers\CampaignController;
 use App\Http\Controllers\ClienteController;
+use App\Http\Controllers\ContactsController;
 use App\Http\Controllers\CronController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DeviceController;
@@ -16,6 +18,8 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\UsuarioController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\GitWebhookController;
+use App\Http\Controllers\MenssageController;
+use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\WebhookController;
 use Illuminate\Http\Request;
 
@@ -48,8 +52,11 @@ Route::post('/webhook', [WebhookController::class, 'evento'])->withoutMiddleware
     \App\Http\Middleware\VerifyCsrfToken::class,
     \App\Http\Middleware\Authenticate::class,
 ]);
+
+
 Route::prefix('/cron')->controller(CronController::class)->group(function () {
     Route::get('/enviarMensagem', 'enviarPendentes');
+     Route::get('/mensagemEmMassa', 'mensagemEmMassa');
 });
 
 
@@ -110,6 +117,44 @@ Route::middleware('auth')->group(function () {
         Route::post('/updateName', 'updateName');
         Route::get('/getStatus', 'getStatus');
     });
+
+    Route::prefix('/mensagem')->controller(MenssageController::class)->group(function () {
+        Route::get('/', 'create')->name('message.create');
+        Route::get('/agendamentos', 'indexAgendamentos')->name('message.agendamento');
+        Route::get('/getAgendamentos', 'getAgendamentos')->name('message.getAgendamento');
+        Route::post('/upload', 'upload')->name('upload.imagem');
+        Route::post('/countContact', 'countContact');
+        Route::get('/novo', 'index')->name('message.index');;
+        Route::get('/getMessage', 'getMessage');
+        Route::post('/bulk', 'bulkMessage')->name('message.bulk');
+    });
+
+    Route::prefix('/contatos')->controller(ContactsController::class)->group(function () {
+        Route::get('/', 'index')->name('contact.index');
+        Route::post('/contato', 'store')->name('contact.store');;
+        Route::post('/contatoFile', 'storeFile')->name('contact.storeFile');
+        Route::put('/updateLista/{id}', 'update');
+        Route::post('/new', 'storeContact')->name('contact-more-one.store');
+        Route::get('/detalhes/{id}', 'show')->name('contact.show');
+        Route::delete('/delete/{id}', 'destroy')->name('contact.destroy');
+        Route::delete('/deleteLista', 'delete')->name('contact.deleteLista');
+    });
+
+
+    Route::prefix('/campanha')->controller(CampaignController::class)->group(function () {
+        Route::get('/relatorio-de-envio', 'index')->name('campaign.index');;
+        Route::get('/edit/{id}', 'edit')->name('campaign.edit');
+        Route::get('/ver/{id}', 'show')->name('campaign.show');;
+        Route::post('/updateStatus', 'updateStatus')->name('campaign.updateStatus');
+        Route::put('/update/{id}', 'update')->name('campaign.update');
+        Route::delete('/deletaCampanha/{id}', 'deleteCampanha');
+        Route::delete('/{campaign}/contact/{contactList}', 'destroyContact');
+    });
+
+     Route::prefix('/agenda')->controller(ScheduleController::class)->group(function () {
+            Route::get('/', 'index')->name('schedule.index');
+            Route::post('/atualiza', 'update')->name('schedule.update');
+        });
 
     Route::prefix('/entregador')->name('entregador.')->controller(EntregadorController::class)->group(function () {
         Route::get('/', 'index')->name('index');              // Lista de entregadores

@@ -41,7 +41,7 @@ class Entregador extends Model
         return self::where('trabalhando', true)
             ->where('ativo', 1)
             ->withCount(['pedidos as pedidos_do_dia' => function ($query) {
-                $query->whereDate('created_at', today());
+                $query->whereDate('created_at', today())->where('status_pedido_id', 8);
             }])
             ->get();
     }

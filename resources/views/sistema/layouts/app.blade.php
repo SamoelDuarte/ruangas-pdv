@@ -88,24 +88,40 @@
                         </li>
                     @endcan
 
-                    <!-- User Profile with Dropdown, stays to the right -->
-                    <li class="nav-item dropdown ms-auto user-info">
-                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownProfile" role="button"
-                            data-bs-toggle="dropdown" aria-expanded="false">
-                            {{ Auth::user()->email }} <!-- Exibe o nome ou email -->
-                        </a>
-                        <ul class="dropdown-menu" aria-labelledby="navbarDropdownProfile">
-                            <li><a class="dropdown-item" href="#">Alterar Senha</a></li>
-                            <li>
-                                <form action="{{ route('logout') }}" method="POST" style="display: none;"
-                                    id="logoutForm">
-                                    @csrf
-                                </form>
-                                <a class="dropdown-item" href="#"
-                                    onclick="document.getElementById('logoutForm').submit();">Sair</a>
-                            </li>
-                        </ul>
+                    @can('gerenciar mensagens')
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button"
+                                data-bs-toggle="dropdown" aria-expanded="false">Mensagens</a>
+                            <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
+                                <li>
+                                    <!-- Verifica se o usuário tem a permissão 'gerenciar usuários' -->
+                                    <a class="dropdown-item" href="{{ route('message.create') }}">Envio em Massa</a>
+                                    <a class="dropdown-item" href="{{ route('campaign.index') }}">Rolatório de Envio</a>
+                                    <a class="dropdown-item" href="{{ route('schedule.index') }}">Agendamentos</a>
+                                    <a class="dropdown-item" href="{{ route('contact.index') }}">Contatos</a>
+                        </li>
+                    </ul>
                     </li>
+                @endcan
+
+                <!-- User Profile with Dropdown, stays to the right -->
+                <li class="nav-item dropdown ms-auto user-info">
+                    <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownProfile" role="button"
+                        data-bs-toggle="dropdown" aria-expanded="false">
+                        {{ Auth::user()->email }} <!-- Exibe o nome ou email -->
+                    </a>
+                    <ul class="dropdown-menu" aria-labelledby="navbarDropdownProfile">
+                        <li><a class="dropdown-item" href="#">Alterar Senha</a></li>
+                        <li>
+                            <form action="{{ route('logout') }}" method="POST" style="display: none;"
+                                id="logoutForm">
+                                @csrf
+                            </form>
+                            <a class="dropdown-item" href="#"
+                                onclick="document.getElementById('logoutForm').submit();">Sair</a>
+                        </li>
+                    </ul>
+                </li>
                 </ul>
             </div>
         </div>
@@ -245,14 +261,14 @@
                     toast.addEventListener('mouseleave', Swal.resumeTimer)
                 }
             });
-        
+
             Toast.fire({
                 icon: icon,
                 title: message
             });
         }
-        </script>
-        
+    </script>
+
 </body>
 
 </html>

@@ -13,16 +13,16 @@ class DeviceController extends Controller
     {
         return view('dashboard.index');
     }
+
     public function index()
     {
         return view('sistema.dispositivo.index');
     }
+
     public function create()
     {
-        // Apaga os dispositivos antigos
         Device::whereNull('status')->delete();
 
-        // Cria o dispositivo com apenas a session
         $device = new Device();
         $device->session = Utils::createCode();
         $device->save();
@@ -32,19 +32,17 @@ class DeviceController extends Controller
 
     public function store(Request $request)
     {
-        // Apaga os dispositivos antigos
         Device::whereNull('status')->delete();
+
         $request->validate([
             'nome' => 'required|string|max:255'
         ]);
 
-        // Cria nova sessão
         $device = new Device();
         $device->session = Utils::createCode();
         $device->name = $request->nome;
         $device->save();
 
-        // Gera o QR Code da sessão
         $qrcode = $this->getQrCode($device->session);
 
         return response()->json([
@@ -54,50 +52,44 @@ class DeviceController extends Controller
         ]);
     }
 
-
-
     public function getDevices()
     {
-        Device::deleteDevicesWithNullJid();
+        Device::deleteDevicesWithNullJid(); // garanta que existe no model
         $devices = Device::orderBy('id');
         return DataTables::of($devices)->make(true);
     }
 
     public function updateStatus(Request $request)
     {
-        $device = Device::where('id', $request->id)->first();
-
-
+        $device = Device::find($request->id);
 
         $device->status = $request->status;
         $device->picture = $request->picture;
         $device->jid = $request->jid;
         $device->update();
 
-        echo json_encode(array('status' => '1'));
+        return response()->json(['status' => '1']);
     }
 
     public function updateName(Request $request)
     {
-        $device = Device::where('id', $request->id)->first();
+        $device = Device::find($request->id);
         $device->name = $request->name;
         $device->update();
-        echo json_encode(array('status' => '1'));
+
+        return response()->json(['status' => '1']);
     }
 
-    function getQrCode($session)
+    public function getQrCode($session)
     {
-        // URL da requisição
         $url = env('APP_URL_ZAP') . '/instance/create';
 
-        // Dados da requisição
         $data = [
             "instanceName" => $session,
             "qrcode"       => true,
             "integration"  => "WHATSAPP-BAILEYS"
         ];
 
-        // Configuração da requisição
         $options = [
             CURLOPT_URL            => $url,
             CURLOPT_POST           => true,
@@ -109,36 +101,20 @@ class DeviceController extends Controller
             ]
         ];
 
-        // Inicializar a sessão curl
         $ch = curl_init();
-
-        // Configurar as opções do curl
         curl_setopt_array($ch, $options);
-
-        // Executar a requisição e obter a resposta
         $response = curl_exec($ch);
 
-        // Verificar se ocorreu algum erro
         if (curl_errno($ch)) {
-            echo 'Erro na requisição: ' . curl_error($ch);
             curl_close($ch);
             return false;
         }
 
-        // Fechar a sessão curl
         curl_close($ch);
-
-        // Tratar a resposta (decodificar JSON)
         $result = json_decode($response, true);
 
-        // Verificar se veio o QR Code
-        if (isset($result['qrcode']['base64'])) {
-            return $result['qrcode']['base64'];
-        }
-
-        return false;
+        return $result['qrcode']['base64'] ?? false;
     }
-
 
     public function gerarQr(Request $request)
     {
@@ -160,22 +136,19 @@ class DeviceController extends Controller
         }
     }
 
-
-    
     public function getStatus(Request $request)
     {
         $client = new Client();
 
         try {
-            $response = $client->request('GET',  env('APP_URL_ZAP')."/instance/connectionState/{$request->sessionId}", [
+            $response = $client->request('GET', env('APP_URL_ZAP') . "/instance/connectionState/{$request->sessionId}", [
                 'headers' => [
-                    'apikey' => env('TOKEN_EVOLUTION') // Substitua pela sua chave real
+                    'apikey' => env('TOKEN_EVOLUTION')
                 ]
             ]);
 
             $body = json_decode($response->getBody(), true);
 
-            // Retorna como JSON
             return response()->json([
                 'status' => true,
                 'data' => $body
@@ -188,17 +161,15 @@ class DeviceController extends Controller
         }
     }
 
-
-
     public function delete(Request $request)
     {
-
-
         $device = Device::where('id', $request->id_device)->first();
 
-        $device->delete();
+        if ($device) {
+            $device->delete();
+            return back()->with('success', 'Deletado Com Sucesso.');
+        }
 
-
-        return back()->with('success', 'Deletado Com Sucesso.');
+        return back()->with('error', 'Dispositivo não encontrado.');
     }
 }

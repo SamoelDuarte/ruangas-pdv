@@ -44,6 +44,7 @@ class RolePermissionSeeder extends Seeder
             'excluir pedidos',
             'gerenciar pedidos',
             'listar pedidos',
+            'gerenciar mensagens',
 
         ];
 

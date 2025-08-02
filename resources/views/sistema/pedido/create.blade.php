@@ -1,13 +1,12 @@
 @extends('sistema.layouts.app')
 
 @section('content')
-<div class="row">
-    <div class="col-md-8">
-        <div class="container mt-4">
-            <div class="page-header-content py-3">
-                <h1 class="h3 mb-0 text-gray-800">Novo Pedido</h1>
-            </div>
-    
+    <div class="page-header-content py-3">
+        <h1 class="h3 mb-0 text-gray-800">Novo Pedido</h1>
+    </div>
+    <div class="row">
+        <div class="col-md-9">
+
             <div class="card">
                 <div class="card-body">
                     <form action="{{ route('pedido.store') }}" id="formPedido" method="POST">
@@ -17,19 +16,20 @@
                             <div class="col-md-3">
                                 <div class="mb-3 position-relative">
                                     <label for="telefone" class="form-label">Telefone do Cliente</label>
-                                    <input type="text" class="form-control" id="telefone" name="telefone" autocomplete="off"
-                                        required oninvalid="this.setCustomValidity('O campo Telefone deve ser preenchido.')"
+                                    <input type="text" class="form-control" id="telefone" name="telefone"
+                                        autocomplete="off" required
+                                        oninvalid="this.setCustomValidity('O campo Telefone deve ser preenchido.')"
                                         oninput="this.setCustomValidity('')">
-    
+
                                     <div id="sugestoes-clientes" class="list-group position-absolute w-100 d-none"
                                         style="z-index: 1000;"></div>
                                 </div>
-    
+
                                 <div class="mb-3">
                                     <label for="nome" class="form-label">Nome</label>
                                     <input type="text" class="form-control" id="nome" name="nome">
                                 </div>
-    
+
                                 <div class="mb-3">
                                     <label for="logradouro" class="form-label">Logradouro</label>
                                     <input type="text" class="form-control" id="logradouro" name="logradouro"
@@ -37,11 +37,11 @@
                                         oninvalid="this.setCustomValidity('O campo Logradouro deve ser preenchido.')"
                                         oninput="this.setCustomValidity('')">
                                 </div>
-    
+
                             </div>
                             <!-- Coluna 2 -->
                             <div class="col-md-3">
-    
+
                                 <div class="mb-3">
                                     <label for="numero" class="form-label">Número</label>
                                     <!-- Número -->
@@ -53,32 +53,32 @@
                                     <label for="cep" class="form-label">CEP</label>
                                     <input type="text" class="form-control" id="cep" name="cep">
                                 </div>
-    
+
                                 <div class="mb-3">
                                     <label for="cidade" class="form-label">Cidade</label>
                                     <input type="text" class="form-control" id="cidade" name="cidade">
                                 </div>
-    
-    
+
+
                             </div>
                             <!-- Coluna 3 -->
                             <div class="col-md-3">
-    
+
                                 <div class="mb-3">
                                     <label for="referencia" class="form-label">Ponto de Referência</label>
                                     <input type="text" class="form-control" id="referencia" name="referencia">
                                 </div>
-    
+
                                 <div class="mb-3">
                                     <label for="bairro" class="form-label">Bairro</label>
                                     <input type="text" class="form-control" id="bairro" name="bairro">
                                 </div>
-    
+
                                 <div class="mb-3">
                                     <label for="complemento" class="form-label">Complemento</label>
                                     <input type="text" class="form-control" id="complemento" name="complemento">
                                 </div>
-    
+
                             </div>
                             <div class="col-md-3">
                                 <div class="mb-3">
@@ -92,7 +92,7 @@
                             </div>
                         </div>
                         <hr class="my-4">
-    
+
                         <div class="row g-2">
                             <div class="col-md-7">
                                 <div class="row">
@@ -101,41 +101,42 @@
                                         <label class="form-label">Código</label>
                                         <input type="text" class="form-control" id="codigo_produto">
                                     </div>
-    
+
                                     <!-- Nome Produto -->
                                     <div class="col-md-3">
                                         <label class="form-label">Produto</label>
                                         <input type="text" class="form-control" id="nome_produto" readonly>
                                     </div>
-    
+
                                     <!-- Quantidade -->
                                     <div class="col-md-2">
                                         <label class="form-label">Qtd.</label>
-                                        <input type="number" class="form-control" id="quantidade_produto" value="1"
-                                            min="1">
+                                        <input type="number" class="form-control" id="quantidade_produto"
+                                            value="1" min="1">
                                     </div>
-    
+
                                     <!-- Valor Unitário -->
                                     <div class="col-md-2">
                                         <label class="form-label">Valor (R$)</label>
                                         <input type="text" class="form-control" id="valor_produto" step="0.01">
                                     </div>
-    
+
                                     <!-- Total -->
                                     <div class="col-md-2">
                                         <label class="form-label">Total</label>
                                         <input type="text" class="form-control" id="total_produto" readonly>
                                     </div>
-    
+
                                     <!-- Botão Adicionar Produto -->
                                     <div class="col-md-1 align-items-center d-flex">
-                                        <button type="button" class="btn btn-success" id="btnAdicionarProduto">+</button>
+                                        <button type="button" class="btn btn-success"
+                                            id="btnAdicionarProduto">+</button>
                                     </div>
                                     <!-- Lista de produtos adicionados -->
                                     <div class="row g-2 mt-3" id="lista_produtos"></div>
                                 </div>
                                 <hr class="my-4">
-    
+
                                 <div class="row mt-3">
                                     <div class="col-md-4">
                                         <label for="tipo_pedido" class="form-label">Tipo de Pedido</label>
@@ -171,7 +172,8 @@
                                     </div>
                                     <!-- Botão Adicionar Pagamento -->
                                     <div class="col-md-1 align-items-center d-flex">
-                                        <button type="button" class="btn btn-primary" id="btnAdicionarPagamento">+</button>
+                                        <button type="button" class="btn btn-primary"
+                                            id="btnAdicionarPagamento">+</button>
                                     </div>
                                     <!-- Lista de formas de pagamento -->
                                     <div class="row g-2 mt-3" id="lista_pagamentos"></div>
@@ -185,42 +187,72 @@
                                         <!-- Novo campo para mostrar o troco -->
                                         <h6 class="text-success"><span id="troco"></span></h6>
                                     </div>
-    
+
                                     <div id="inputs_ocultos"></div> <!-- aqui os JS vão inserir os hidden inputs -->
                                     <input type="hidden" name="total" id="total_geral_input">
-    
-    
-                                    <button type="submit" class="btn btn-primary" id="salvar-pedido">Salvar Pedido</button>
+
+
+                                    <button type="submit" class="btn btn-primary" id="salvar-pedido">Salvar
+                                        Pedido</button>
                                 </div>
                             </div>
-    
-    
+
+
                         </div>
-    
+
                     </form>
                 </div>
             </div>
-        </div>
-    
-        <footer class="footer-shortcut bg-light border-top py-2 px-3 fixed-bottom shadow-sm">
-            <div class="d-flex justify-content-between align-items-center small text-muted">
-                <div>
-                    <strong>Atalhos:</strong>
-                    <span class="ms-3">[ Alt + T - Telefone ] </span>
-                    <span class="ms-3">[ Alt + P - Produto ] </span> <!-- "U" de "produto" (já que P tá em uso) -->
-                    <span class="ms-3">[ Alt + M - Pagamento ] </span> <!-- "M" de "forma de pagamento" -->
-                    <span class="ms-3">[ Alt + R - Rua ] </span> <!-- "M" de "forma de pagamento" -->
-                    <span class="ms-3">[ Alt + S - Salvar Pedido ] </span> <!-- "M" de "forma de pagamento" -->
-    
+
+            <footer class="footer-shortcut bg-light border-top py-2 px-3 fixed-bottom shadow-sm">
+                <div class="d-flex justify-content-between align-items-center small text-muted">
+                    <div>
+                        <strong>Atalhos:</strong>
+                        <span class="ms-3">[ Alt + T - Telefone ] </span>
+                        <span class="ms-3">[ Alt + P - Produto ] </span> <!-- "U" de "produto" (já que P tá em uso) -->
+                        <span class="ms-3">[ Alt + M - Pagamento ] </span> <!-- "M" de "forma de pagamento" -->
+                        <span class="ms-3">[ Alt + R - Rua ] </span> <!-- "M" de "forma de pagamento" -->
+                        <span class="ms-3">[ Alt + S - Salvar Pedido ] </span> <!-- "M" de "forma de pagamento" -->
+
+                    </div>
+                    <div>
+                        <span>Pressione os atalhos para facilitar o uso</span>
+                    </div>
                 </div>
-                <div>
-                    <span>Pressione os atalhos para facilitar o uso</span>
+            </footer>
+        </div>
+        <div class="col-md-3">
+            <!-- Tabela lateral: Entregadores Trabalhando -->
+            <div class="card shadow mb-4">
+                <div class="card-body">
+                    <h5 class="mb-3">Pedidos Aceito</h5>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered text-center align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Entregador</th>
+                                    <th>Pedidos</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse ($entregadoresTrabalhando as $entregador)
+                                    <tr>
+                                        <td>{{ $entregador->nome }}</td>
+                                        <td>{{ $entregador->pedidos_do_dia }}</td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="2">Nenhum entregador trabalhando</td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
-        </footer>
+
+        </div>
     </div>
-</div>
-    
 @endsection
 
 
@@ -306,6 +338,8 @@
             const btnAdicionarProduto = document.getElementById('btnAdicionarProduto');
             const btnAdicionarPagamento = document.getElementById('btnAdicionarPagamento');
             const listaProdutos = document.getElementById('lista_produtos');
+            const bordaSelect = document.getElementById('produto_unidade_borda');
+            const inputObs = document.getElementById('produto_unidade_obs');
             const listaPagamentos = document.getElementById('lista_pagamentos');
             const totalGeral = document.getElementById('total_geral');
             const totalFalta = document.getElementById('total_falta');
@@ -376,13 +410,13 @@
                     row.classList.add('row', 'g-2', 'align-items-center');
 
                     row.innerHTML = `
-            <div class="col-md-1"><span>${produto.codigo}</span><input type="hidden" value="${produto.codigo}"></div>
-            <div class="col-md-3"><span>${produto.nome}</span><input type="hidden" value="${produto.nome}"></div>
-            <div class="col-md-2"><span>${produto.quantidade}</span><input type="hidden" value="${produto.quantidade}"></div>
-            <div class="col-md-2"><span>${produto.valorUnitario.toFixed(2)}</span><input type="hidden" value="${produto.valorUnitario.toFixed(2)}"></div>
-            <div class="col-md-2"><span>${produto.total.toFixed(2)}</span><input type="hidden" value="${produto.total.toFixed(2)}"></div>
-            <div class="col-md-1"><button class="btn btn-danger" onclick="removerProduto(${index})">-</button></div>
-            `;
+                                    <div class="col-md-1"><span>${produto.codigo}</span><input type="hidden" value="${produto.codigo}"></div>
+                                    <div class="col-md-3"><span>${produto.nome}</span><input type="hidden" value="${produto.nome}"></div>
+                                    <div class="col-md-2"><span>${produto.quantidade}</span><input type="hidden" value="${produto.quantidade}"></div>
+                                    <div class="col-md-2"><span>${produto.valorUnitario.toFixed(2)}</span><input type="hidden" value="${produto.valorUnitario.toFixed(2)}"></div>
+                                    <div class="col-md-2"><span>${produto.total.toFixed(2)}</span><input type="hidden" value="${produto.total.toFixed(2)}"></div>
+                                    <div class="col-md-1"><button class="btn btn-danger" onclick="removerProduto(${index})">-</button></div>
+                                    `;
 
                     listaProdutos.appendChild(row);
                 });
@@ -634,6 +668,188 @@
             });
         });
     </script>
+    {{-- script meai a meia  --}}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            let produtos = [];
+
+            const inputMeia1 = document.getElementById('meia1_nome');
+            const inputMeia2 = document.getElementById('meia2_nome');
+            const inputQtd = document.getElementById('meia_qtd');
+            const bordaSelect = document.getElementById('meia_borda');
+            const inputObs = document.getElementById('meia_obs');
+            const listaProdutos = document.getElementById('lista_produtos');
+
+            const sugestaoMeia1 = document.getElementById('sugestoes-meia1');
+            const sugestaoMeia2 = document.getElementById('sugestoes-meia2');
+
+            let valores = {
+                meia1: 0,
+                meia2: 0
+            };
+            let nomes = {
+                meia1: '',
+                meia2: ''
+            };
+
+            function adicionarPizzaMeia() {
+                const nome1 = nomes.meia1;
+                const nome2 = nomes.meia2;
+                const quantidade = parseFloat(inputQtd.value) || 1;
+                const precoBorda = parseFloat(bordaSelect.selectedOptions[0]?.dataset.preco || 0);
+                const nomeBorda = bordaSelect.value;
+                const observacao = inputObs.value.trim();
+
+                const valorMaior = Math.max(valores.meia1, valores.meia2);
+                const valorComBorda = valorMaior + precoBorda;
+                const total = quantidade * valorComBorda;
+
+                if (!nome1 || !nome2 || valorMaior === 0) {
+                    alert('Preencha os dois sabores corretamente.');
+                    return;
+                }
+
+                produtos.push({
+                    nome: `${nome1} / ${nome2}`,
+                    quantidade: quantidade,
+                    valorUnitario: valorMaior,
+                    borda: nomeBorda,
+                    precoBorda: precoBorda,
+                    total: total,
+                    observacao: observacao
+                });
+
+                atualizarListaProdutos();
+
+                inputMeia1.value = '';
+                inputMeia2.value = '';
+                valores = {
+                    meia1: 0,
+                    meia2: 0
+                };
+                nomes = {
+                    meia1: '',
+                    meia2: ''
+                };
+                inputQtd.value = '1';
+                bordaSelect.selectedIndex = 0;
+                inputObs.value = '';
+                sugestaoMeia1.classList.add('d-none');
+                sugestaoMeia2.classList.add('d-none');
+                inputMeia1.focus();
+            }
+
+            function buscarPizza(nome, callback, box) {
+                if (nome.length < 2) return;
+
+                fetch(`/produtos/buscar-pizza-por-nome?nome=${encodeURIComponent(nome)}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        box.innerHTML = '';
+                        if (data.length) {
+                            data.forEach((produto) => {
+                                const item = document.createElement('a');
+                                item.href = '#';
+                                item.classList.add('list-group-item', 'list-group-item-action');
+                                item.textContent =
+                                    `${produto.name} - R$ ${parseFloat(produto.price).toFixed(2)}`;
+
+                                item.addEventListener('click', function(e) {
+                                    e.preventDefault();
+                                    callback(produto);
+                                    box.classList.add('d-none');
+                                });
+
+                                box.appendChild(item);
+                            });
+                            box.classList.remove('d-none');
+                        } else {
+                            box.classList.add('d-none');
+                        }
+                    });
+            }
+
+            inputMeia1.addEventListener('input', function() {
+                buscarPizza(this.value.trim(), preencherMeia1, sugestaoMeia1);
+            });
+
+            inputMeia2.addEventListener('input', function() {
+                buscarPizza(this.value.trim(), preencherMeia2, sugestaoMeia2);
+            });
+
+            function preencherMeia1(produto) {
+                inputMeia1.value = produto.name;
+                valores.meia1 = parseFloat(produto.price);
+                nomes.meia1 = produto.name;
+            }
+
+            function preencherMeia2(produto) {
+                inputMeia2.value = produto.name;
+                valores.meia2 = parseFloat(produto.price);
+                nomes.meia2 = produto.name;
+            }
+
+            inputQtd.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    bordaSelect.focus();
+                }
+            });
+
+            bordaSelect.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    inputObs.focus();
+                }
+            });
+
+            inputObs.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    adicionarPizzaMeia();
+                }
+            });
+
+            document.addEventListener('keydown', function(e) {
+                if (e.altKey && e.key.toLowerCase() === 'm') {
+                    e.preventDefault();
+                    adicionarPizzaMeia();
+                }
+            });
+
+            function atualizarListaProdutos() {
+                listaProdutos.innerHTML = '';
+
+                produtos.forEach((produto, index) => {
+                    const valorTotal = produto.total.toFixed(2);
+                    const nomeBordaFormatado = produto.precoBorda > 0 ? produto.borda : 'Tradicional';
+                    const observacaoFormatada = produto.observacao ? `Obs: ${produto.observacao}` : '';
+                    const nomeCompleto = `${produto.nome} c/ borda ${nomeBordaFormatado}`;
+
+                    const row = document.createElement('div');
+                    row.classList.add('row', 'g-2', 'align-items-start', 'mb-2');
+
+                    row.innerHTML = `
+                    <div class="col-md-10">
+                        <strong>${nomeCompleto}</strong> (${produto.quantidade}x) - R$ ${valorTotal}<br>
+                        <small class="text-muted">${observacaoFormatada}</small>
+                    </div>
+                    <div class="col-md-2 d-flex justify-content-end">
+                        <button class="btn btn-danger btn-sm" onclick="removerProduto(${index})">Remover</button>
+                    </div>
+                `;
+
+                    listaProdutos.appendChild(row);
+                });
+            }
+
+            window.removerProduto = function(index) {
+                produtos.splice(index, 1);
+                atualizarListaProdutos();
+            };
+        });
+    </script>
+
     <script>
         const codigoInput = document.getElementById('codigo_produto');
 

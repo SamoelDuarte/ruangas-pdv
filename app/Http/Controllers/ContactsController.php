@@ -155,16 +155,22 @@ class ContactsController extends Controller
 
 
     public function formatarTexto($texto)
-    {
-        $textoFormatado = preg_replace('/[.\-+\s]+/', '', $texto);
-        $textoFormatado = preg_replace('/^(55|\+55)/', '', $textoFormatado);
+{
+    // Remove tudo que não for número
+    $soNumeros = preg_replace('/\D/', '', $texto);
 
-        if (strlen($textoFormatado) === 11) {
-            return '55' . $textoFormatado;
-        }
+    // Remove o código do país se existir (com ou sem +)
+    $soNumeros = preg_replace('/^55/', '', $soNumeros);
 
-        return false;
+    // Se tiver exatamente 11 dígitos (DDD + número), é válido
+    if (strlen($soNumeros) === 11) {
+        return '55' . $soNumeros;
     }
+
+    // Número inválido
+    return false;
+}
+
 
     public function update(Request $request, $id)
     {

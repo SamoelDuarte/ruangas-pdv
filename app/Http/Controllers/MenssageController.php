@@ -99,26 +99,13 @@ class MenssageController extends Controller
         $contactLists = ContactList::where('contact_id', $request->contact_id)->get();
 
         // Saving relationships in the campaign_contact table
-        // Salvando os contatos da campanha
         foreach ($contactLists as $contactList) {
-            // Supondo que o campo 'number' está dentro do contato (ajuste conforme sua estrutura)
-            $rawNumber = $contactList->number ?? null;
-
-            if ($rawNumber) {
-                // Limpa o número: remove tudo que não for número
-                $cleanNumber = preg_replace('/\D/', '', $rawNumber);
-
-                // Se após limpar ainda houver número, salva
-                if (!empty($cleanNumber)) {
-                    $campaignContact = new CampaignContact();
-                    $campaignContact->campaign_id = $campaign->id;
-                    $campaignContact->contact_list_id = $contactList->id;
-                    $campaignContact->send = false;
-                    $campaignContact->save();
-                }
-            }
+            $campaignContact = new CampaignContact();
+            $campaignContact->campaign_id = $campaign->id;
+            $campaignContact->contact_list_id = $contactList->id;
+            $campaignContact->send = false; // Assuming default value is false
+            $campaignContact->save();
         }
-
 
         // Se o usuário selecionou devices
         if ($request->has('devices') && is_array($request->devices)) {

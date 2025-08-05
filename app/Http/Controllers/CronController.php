@@ -142,10 +142,8 @@ class CronController extends Controller
 
             // Define qual device será usado
             if ($campaign->devices->count() > 0) {
-                // Se a campanha tiver devices, pega o com updated_at mais antigo
                 $device = $campaign->devices->sortBy('updated_at')->first();
             } else {
-                // Senão, pega o global com updated_at mais antigo
                 $device = Device::where('status', 'open')
                     ->orderBy('updated_at', 'asc')
                     ->first();
@@ -153,12 +151,12 @@ class CronController extends Controller
 
             if (!$device) {
                 echo "Nenhum device disponível para campanha {$campaign->id}.<br>";
-                continue;
+                return;
             }
 
             if ($device->message_count_last_hour > 39) {
                 echo "Device {$device->id} atingiu o limite de mensagens por hora.<br>";
-                continue;
+                return;
             }
 
             // Preparar os dados para envio
@@ -177,43 +175,11 @@ class CronController extends Controller
             $device->touch();
 
             echo "Enviado para {$contactList->phone} via device {$device->id} <br>";
-        }
-    }
 
-
-    public function sendImage($session, $phone, $urlImagem, $descricao = '')
-    {
-        $numero = preg_replace('/[^0-9]/', '', $phone);
-        if (str_starts_with($numero, '55')) {
-            $numero = substr($numero, 2);
+            // Enviou 1? Sai da função
+            return;
         }
 
-        $client = new \GuzzleHttp\Client();
-        $url = "http://147.79.111.119:8080/message/sendMedia/{$session}";
-
-        $headers = [
-            'Content-Type' => 'application/json',
-            'apikey' => env('TOKEN_EVOLUTION'),
-        ];
-
-        $body = json_encode([
-            'number' => '55' . $numero,
-            'mediatype' => 'image',
-            'mimetype' => 'image/png',
-            'caption' => $descricao,
-            'media' => $urlImagem,
-            'fileName' => 'imagem.png',
-        ]);
-
-        try {
-            $request = new \GuzzleHttp\Psr7\Request('POST', $url, $headers, $body);
-            $response = $client->sendAsync($request)->wait();
-
-            Log::info("Imagem enviada para 55{$numero}");
-            return json_decode($response->getBody(), true);
-        } catch (\Exception $e) {
-            Log::error("Erro ao enviar imagem: " . $e->getMessage());
-            return false;
-        }
+        echo "Nenhum contato para enviar agora.<br>";
     }
 }

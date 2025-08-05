@@ -25,6 +25,12 @@ class Campaign extends Model
         return $this->belongsTo(Contact::class);
     }
 
+    public function devices()
+    {
+        return $this->belongsToMany(Device::class, 'campaign_device');
+    }
+
+
     /**
      * Get the image associated with the campaign.
      */
@@ -39,7 +45,7 @@ class Campaign extends Model
     public function contactList()
     {
         return $this->belongsToMany(ContactList::class, 'campaign_contact')
-                    ->withPivot('send')
-                    ->withTimestamps();
+            ->withPivot('send')
+            ->withTimestamps();
     }
 }

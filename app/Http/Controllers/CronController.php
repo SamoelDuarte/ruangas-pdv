@@ -121,50 +121,64 @@ class CronController extends Controller
             return;
         }
 
-        // Pega o device com updated_at mais antigo e status aberto
-        $device = Device::where('status', 'open')
-            ->orderBy('updated_at', 'asc')
-            ->first();
-
-        if (!$device) {
-            echo "Nenhum device ativo disponível.";
-            return;
-        }
-
-        if ($device->message_count_last_hour > 39) {
-            echo "Device atingiu limite de mensagens por hora.";
-            return;
-        }
-
-        // Pega campanhas ativas
+        // Pega campanhas ativas com contatos não enviados
         $campaigns = Campaign::where('status', 'play')
-            ->with(['contactList' => function ($query) {
-                $query->wherePivot('send', false)->limit(1);
-            }])
+            ->with([
+                'contactList' => function ($query) {
+                    $query->wherePivot('send', false)->limit(1);
+                },
+                'devices' => function ($query) {
+                    $query->where('status', 'open');
+                }
+            ])
             ->get();
 
         foreach ($campaigns as $campaign) {
             $contactList = $campaign->contactList->first();
 
-            if ($contactList && $contactList->phone != "") {
-                $imagem = asset($campaign->imagem->caminho);
-                $texto = $campaign->texto ?? '';
-
-                // Envia a imagem para o contato pelo device escolhido
-                $this->sendImage($device->session, $contactList->phone, $imagem, $texto);
-
-                // Marca o contato como enviado
-                $contactList->pivot->send = true;
-                $contactList->pivot->save();
-
-                echo "Enviado para {$contactList->phone} via device {$device->id} <br>";
+            if (!$contactList || $contactList->phone == "") {
+                continue;
             }
+
+            // Define qual device será usado
+            if ($campaign->devices->count() > 0) {
+                // Se a campanha tiver devices, pega o com updated_at mais antigo
+                $device = $campaign->devices->sortBy('updated_at')->first();
+            } else {
+                // Senão, pega o global com updated_at mais antigo
+                $device = Device::where('status', 'open')
+                    ->orderBy('updated_at', 'asc')
+                    ->first();
+            }
+
+            if (!$device) {
+                echo "Nenhum device disponível para campanha {$campaign->id}.<br>";
+                continue;
+            }
+
+            if ($device->message_count_last_hour > 39) {
+                echo "Device {$device->id} atingiu o limite de mensagens por hora.<br>";
+                continue;
+            }
+
+            // Preparar os dados para envio
+            $imagem = asset($campaign->imagem->caminho);
+            $texto = $campaign->texto ?? '';
+
+            sleep(rand(1, 10)); // atraso aleatório
+
+            $this->sendImage($device->session, $contactList->phone, $imagem, $texto);
+
+            // Marca o contato como enviado
+            $contactList->pivot->send = true;
+            $contactList->pivot->save();
+
+            // Atualiza o updated_at do device
+            $device->touch();
+
+            echo "Enviado para {$contactList->phone} via device {$device->id} <br>";
         }
-
-        // Atualiza o updated_at do device para controlar a próxima vez
-        $device->touch();
     }
-
 
 
     public function sendImage($session, $phone, $urlImagem, $descricao = '')
@@ -173,26 +187,6 @@ class CronController extends Controller
         if (str_starts_with($numero, '55')) {
             $numero = substr($numero, 2);
         }
-
-        // Função para detectar mimetype a partir da extensão
-        $getMimeTypeFromExtension = function ($extension) {
-            $extension = strtolower($extension);
-            return match ($extension) {
-                'png' => 'image/png',
-                'jpg', 'jpeg' => 'image/jpeg',
-                'gif' => 'image/gif',
-                'webp' => 'image/webp',
-                'bmp' => 'image/bmp',
-                default => 'image/png', // padrão para png caso não reconheça
-            };
-        };
-
-        // Extrair extensão da URL da imagem
-        $urlPath = parse_url($urlImagem, PHP_URL_PATH);
-        $ext = pathinfo($urlPath, PATHINFO_EXTENSION);
-
-        $mimetype = $getMimeTypeFromExtension($ext);
-        $fileName = 'imagem.' . $ext;
 
         $client = new \GuzzleHttp\Client();
         $url = "http://147.79.111.119:8080/message/sendMedia/{$session}";
@@ -205,10 +199,10 @@ class CronController extends Controller
         $body = json_encode([
             'number' => '55' . $numero,
             'mediatype' => 'image',
-            'mimetype' => $mimetype,
+            'mimetype' => 'image/png',
             'caption' => $descricao,
             'media' => $urlImagem,
-            'fileName' => $fileName,
+            'fileName' => 'imagem.png',
         ]);
 
         try {

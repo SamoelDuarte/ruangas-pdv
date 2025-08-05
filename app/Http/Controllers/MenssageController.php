@@ -7,9 +7,11 @@ use App\Models\Campaign;
 use App\Models\CampaignContact;
 use App\Models\Contact;
 use App\Models\ContactList;
+use App\Models\Device;
 use App\Models\ImagemEmMassa;
 use App\Models\Messagen;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Validator;
 use Yajra\DataTables\Facades\DataTables;
@@ -59,7 +61,9 @@ class MenssageController extends Controller
     {
         $imagens = ImagemEmMassa::all();
         $contacts = Contact::withCount('contactLists')->get();
-        return view('sistema.message.create', compact('imagens', 'contacts'));
+        $devices = Device::where('status', 'open')->get(); // 👈 aqui
+
+        return view('sistema.message.create', compact('imagens', 'contacts', 'devices'));
     }
     public function bulkMessage(Request $request)
     {
@@ -101,6 +105,18 @@ class MenssageController extends Controller
             $campaignContact->contact_list_id = $contactList->id;
             $campaignContact->send = false; // Assuming default value is false
             $campaignContact->save();
+        }
+
+        // Se o usuário selecionou devices
+        if ($request->has('devices') && is_array($request->devices)) {
+            foreach ($request->devices as $deviceId) {
+                DB::table('campaign_device')->insert([
+                    'campaign_id' => $campaign->id,
+                    'device_id' => $deviceId,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
         }
 
 
@@ -148,17 +164,17 @@ class MenssageController extends Controller
 
         $totalLinhas = 0;
 
-       if ($extension === 'csv') {
-    $handle = fopen($file->getPathname(), 'r');
-    
-    while (($linha = fgetcsv($handle, 1000, ",")) !== false) {
-        if (!empty($linha[0])) {  // conta também a primeira linha se tiver dados
-            $totalLinhas++;
-        }
-    }
+        if ($extension === 'csv') {
+            $handle = fopen($file->getPathname(), 'r');
 
-    fclose($handle);
-}
+            while (($linha = fgetcsv($handle, 1000, ",")) !== false) {
+                if (!empty($linha[0])) {  // conta também a primeira linha se tiver dados
+                    $totalLinhas++;
+                }
+            }
+
+            fclose($handle);
+        }
 
 
 

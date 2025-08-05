@@ -196,7 +196,24 @@
                                     </label>
                                 @endforeach
                             </div>
+                            <div class="mb-3">
+                                <label class="form-label">Selecione os Dispositivos</label>
+                                <div class="d-flex flex-wrap gap-2">
+                                    @foreach ($devices as $device)
+                                        <div>
+                                            <input type="checkbox" class="btn-check" name="devices[]"
+                                                id="device{{ $device->id }}" value="{{ $device->id }}"
+                                                {{ is_array(old('devices')) && in_array($device->id, old('devices')) ? 'checked' : '' }}>
+                                            <label class="btn btn-outline-primary" for="device{{ $device->id }}">
+                                                {{ $device->alias ?? "TEL: #$device->name" }}
+                                            </label>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            </div>
                         </div>
+
+
                     </div>
                 </form>
             </div>

@@ -59,4 +59,9 @@ class Device extends Model
     {
         self::whereNull('jid')->delete();
     }
+
+    public function campaigns()
+{
+    return $this->belongsToMany(Campaign::class, 'campaign_device');
+}
 }

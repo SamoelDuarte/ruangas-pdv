@@ -56,7 +56,7 @@ Route::post('/webhook', [WebhookController::class, 'evento'])->withoutMiddleware
 
 Route::prefix('/cron')->controller(CronController::class)->group(function () {
     Route::get('/enviarMensagem', 'enviarPendentes');
-     Route::get('/mensagemEmMassa', 'mensagemEmMassa');
+     Route::get('/mensagemEmMas', 'mensagemEmMassa');
 });
 
 

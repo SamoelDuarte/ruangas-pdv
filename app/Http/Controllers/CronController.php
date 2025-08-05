@@ -134,7 +134,10 @@ class CronController extends Controller
             ->get();
 
         foreach ($campaigns as $campaign) {
-            $contactList = $campaign->contactList->first();
+            $contactList = $campaign->contactList()
+                ->wherePivot('send', false)
+                ->orderBy('contact_list.id', 'asc') // opcional: garante ordem
+                ->first();
 
             if (!$contactList || $contactList->phone == "") {
                 continue;
@@ -163,7 +166,7 @@ class CronController extends Controller
             $imagem = asset($campaign->imagem->caminho);
             $texto = $campaign->texto ?? '';
 
-            sleep(rand(1, 10)); // atraso aleatório
+            sleep(rand(1, 40)); // atraso aleatório
 
             $this->sendImage($device->session, $contactList->phone, $imagem, $texto);
 

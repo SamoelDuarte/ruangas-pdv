@@ -166,7 +166,7 @@ class CronController extends Controller
             $imagem = asset($campaign->imagem->caminho);
             $texto = $campaign->texto ?? '';
 
-            sleep(rand(1, 40)); // atraso aleatório
+            sleep(rand(1, 5)); // atraso aleatório
 
             $this->sendImage($device->session, $contactList->phone, $imagem, $texto);
 

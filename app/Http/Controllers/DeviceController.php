@@ -35,12 +35,32 @@ class DeviceController extends Controller
         Device::whereNull('status')->delete();
 
         $request->validate([
-            'nome' => 'required|string|max:255'
+            'nome' => 'required|string|max:255',
+            'start_minutes' => 'required|integer|min:0',
+            'start_seconds' => 'required|integer|min:0|max:59',
+            'end_minutes' => 'required|integer|min:0',
+            'end_seconds' => 'required|integer|min:0|max:59'
         ]);
+
+        // Validação do intervalo de tempo
+        $startTotal = ($request->start_minutes * 60) + $request->start_seconds;
+        $endTotal = ($request->end_minutes * 60) + $request->end_seconds;
+
+        if ($startTotal >= $endTotal) {
+            return response()->json([
+                'errors' => [
+                    'time_interval' => ['O intervalo final deve ser maior que o inicial']
+                ]
+            ], 422);
+        }
 
         $device = new Device();
         $device->session = Utils::createCode();
         $device->name = $request->nome;
+        $device->start_minutes = $request->start_minutes;
+        $device->start_seconds = $request->start_seconds;
+        $device->end_minutes = $request->end_minutes;
+        $device->end_seconds = $request->end_seconds;
         $device->save();
 
         $qrcode = $this->getQrCode($device->session);
@@ -121,10 +141,18 @@ class DeviceController extends Controller
         $request->validate([
             'id' => 'required|exists:devices,id',
             'nome' => 'required|string|max:255',
+            'start_minutes' => 'required|integer|min:0',
+            'start_seconds' => 'required|integer|min:0|max:59',
+            'end_minutes' => 'required|integer|min:0',
+            'end_seconds' => 'required|integer|min:0|max:59'
         ]);
 
         $device = Device::find($request->id);
         $device->name = $request->nome;
+        $device->start_minutes = $request->start_minutes;
+        $device->start_seconds = $request->start_seconds;
+        $device->end_minutes = $request->end_minutes;
+        $device->end_seconds = $request->end_seconds;
         $device->save();
 
         $qrCode = $this->getQrCode($device->session);
@@ -171,5 +199,46 @@ class DeviceController extends Controller
         }
 
         return back()->with('error', 'Dispositivo não encontrado.');
+    }
+
+    public function getDevice($id)
+    {
+        $device = Device::find($id);
+        if (!$device) {
+            return response()->json(['message' => 'Dispositivo não encontrado'], 404);
+        }
+        return response()->json($device);
+    }
+
+    public function update(Request $request)
+    {
+        $request->validate([
+            'id' => 'required|exists:devices,id',
+            'name' => 'required|string|max:255',
+            'start_minutes' => 'required|integer|min:0',
+            'start_seconds' => 'required|integer|min:0|max:59',
+            'end_minutes' => 'required|integer|min:0',
+            'end_seconds' => 'required|integer|min:0|max:59'
+        ]);
+
+        // Validação do intervalo de tempo
+        $startTotal = ($request->start_minutes * 60) + $request->start_seconds;
+        $endTotal = ($request->end_minutes * 60) + $request->end_seconds;
+
+        if ($startTotal >= $endTotal) {
+            return response()->json([
+                'message' => 'O intervalo final deve ser maior que o inicial'
+            ], 422);
+        }
+
+        $device = Device::find($request->id);
+        $device->name = $request->name;
+        $device->start_minutes = $request->start_minutes;
+        $device->start_seconds = $request->start_seconds;
+        $device->end_minutes = $request->end_minutes;
+        $device->end_seconds = $request->end_seconds;
+        $device->save();
+
+        return response()->json(['message' => 'Dispositivo atualizado com sucesso']);
     }
 }

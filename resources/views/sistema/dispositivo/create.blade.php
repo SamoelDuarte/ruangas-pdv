@@ -38,6 +38,50 @@
                         <input type="text" id="device_name" class="form-control" placeholder="Ex: Celular João" required>
                     </div>
 
+                    <div class="form-group px-3">
+                        <label>Intervalo Inicial:</label>
+                        <div class="row">
+                            <div class="col-4">
+                                <div class="input-group">
+                                    <input type="number" id="start_minutes"  class="form-control" min="0" placeholder="Minutos" required>
+                                    <div class="input-group-append">
+                                        <span class="input-group-text">min</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="input-group">
+                                    <input type="number" id="start_seconds" value="0" class="form-control" min="0" max="59" placeholder="Segundos" required>
+                                    <div class="input-group-append">
+                                        <span class="input-group-text">seg</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group px-3 pb-3">
+                        <label>Intervalo Final:</label>
+                        <div class="row">
+                            <div class="col-4">
+                                <div class="input-group">
+                                    <input type="number" id="end_minutes" class="form-control" min="0" placeholder="Minutos" required>
+                                    <div class="input-group-append">
+                                        <span class="input-group-text">min</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="input-group">
+                                    <input type="number" id="end_seconds" value="0" class="form-control" min="0" max="59" placeholder="Segundos" required>
+                                    <div class="input-group-append">
+                                        <span class="input-group-text">seg</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="text-center mb-3">
                         <button id="createDeviceBtn" class="btn btn-primary" disabled>
                             <i class="fas fa-qrcode"></i> Gerar QR Code

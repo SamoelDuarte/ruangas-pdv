@@ -134,53 +134,95 @@ class CronController extends Controller
             ->get();
 
         foreach ($campaigns as $campaign) {
+            // Pega todos os contatos não enviados desta campanha
             $contactList = $campaign->contactList()
                 ->wherePivot('send', false)
-                ->orderBy('contact_list.id', 'asc') // opcional: garante ordem
-                ->first();
+                ->orderBy('contact_list.id', 'asc')
+                ->get();
 
-            if (!$contactList || $contactList->phone == "") {
+            if ($contactList->isEmpty()) {
                 continue;
             }
 
-            // Define qual device será usado
+            // Filtra apenas contatos com telefone
+            $contactList = $contactList->filter(function($contact) {
+                return !empty($contact->phone);
+            });
+
+            if ($contactList->isEmpty()) {
+                continue;
+            }
+
+            // Pega todos os devices disponíveis da campanha que estão no horário
+            $availableDevices = [];
+
             if ($campaign->devices->count() > 0) {
-                $device = $campaign->devices->sortBy('updated_at')->first();
-            } else {
-                $device = Device::where('status', 'open')
-                    ->orderBy('updated_at', 'asc')
-                    ->first();
+                foreach ($campaign->devices as $device) {
+                    if ($device->status !== 'open') {
+                        continue;
+                    }
+
+                    if ($device->message_count_last_hour > 39) {
+                        echo "Device {$device->id} atingiu o limite de mensagens por hora.<br>";
+                        continue;
+                    }
+
+                    // Converte os intervalos para segundos
+                    $startInterval = ($device->start_minutes * 60) + $device->start_seconds;
+                    $endInterval = ($device->end_minutes * 60) + $device->end_seconds;
+
+                    // Gera um intervalo aleatório entre start e end
+                    $randomInterval = rand($startInterval, $endInterval);
+                    
+                    // Verifica quanto tempo passou desde o último envio
+                    $lastUpdate = Carbon::parse($device->updated_at);
+                    $now = Carbon::now();
+                    $diffInSeconds = $now->diffInSeconds($lastUpdate);
+
+                    // Se já passou o tempo do intervalo aleatório, adiciona ao array
+                    if ($diffInSeconds >= $randomInterval) {
+                        $availableDevices[] = $device;
+                        echo "Device {$device->id} disponível para envio (última atualização: {$diffInSeconds}s, intervalo sorteado: {$randomInterval}s entre {$startInterval}s e {$endInterval}s).<br>";
+                    } else {
+                        echo "Device {$device->id} ainda não atingiu o intervalo mínimo (última atualização: {$diffInSeconds}s, precisa esperar: {$randomInterval}s, entre {$startInterval}s e {$endInterval}s).<br>";
+                    }
+                }
             }
 
-            if (!$device) {
-                echo "Nenhum device disponível para campanha {$campaign->id}.<br>";
-                return;
+            // Se não encontrou nenhum device disponível, pula para próxima campanha
+            if (empty($availableDevices)) {
+                echo "Nenhum device disponível dentro do intervalo de tempo para a campanha {$campaign->id}.<br>";
+                continue;
             }
 
-            if ($device->message_count_last_hour > 39) {
-                echo "Device {$device->id} atingiu o limite de mensagens por hora.<br>";
-                return;
+            // Para cada device disponível, pega um contato diferente e envia
+            foreach ($availableDevices as $index => $device) {
+                // Verifica se ainda tem contatos disponíveis
+                if ($index >= $contactList->count()) {
+                    break; // Sai do loop se não houver mais contatos
+                }
+
+                // Pega o próximo contato da lista
+                $contact = $contactList[$index];
+
+                // Preparar os dados para envio
+                $imagem = asset($campaign->imagem->caminho);
+                $texto = $campaign->texto ?? '';
+
+                $this->sendImage($device->session, $contact->phone, $imagem, $texto);
+
+                // Atualiza o updated_at do device
+                $device->touch();
+
+                // Marca este contato específico como enviado
+                $contact->pivot->send = true;
+                $contact->pivot->save();
+
+                echo "Enviado para {$contact->phone} via device {$device->id} <br>";
             }
 
-            // Preparar os dados para envio
-            $imagem = asset($campaign->imagem->caminho);
-            $texto = $campaign->texto ?? '';
-
-            sleep(rand(1, 5)); // atraso aleatório
-
-            $this->sendImage($device->session, $contactList->phone, $imagem, $texto);
-
-            // Marca o contato como enviado
-            $contactList->pivot->send = true;
-            $contactList->pivot->save();
-
-            // Atualiza o updated_at do device
-            $device->touch();
-
-            echo "Enviado para {$contactList->phone} via device {$device->id} <br>";
-
-            // Enviou 1? Sai da função
-            return;
+            // Já processou este contato, vai para a próxima campanha
+            continue;
         }
 
         echo "Nenhum contato para enviar agora.<br>";
@@ -208,7 +250,8 @@ class CronController extends Controller
             'mediatype' => 'image',
             'mimetype' => 'image/png',
             'caption' => $descricao,
-            'media' => $urlImagem,
+            // 'media' => $urlImagem,
+            'media' => 'https://th.bing.com/th/id/R.106357017f8bd35d565974dde8072dbb?rik=IjfuQUTQ8pkXFg&pid=ImgRaw&r=0',
             'fileName' => 'imagem.png',
         ]);
 

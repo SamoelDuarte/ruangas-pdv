@@ -7,10 +7,41 @@ let session = '';
 let id_device = '';
 let conectado = false;
 
-// Habilita botão se nome for válido
-inputNome.addEventListener('input', () => {
-    const nome = inputNome.value.trim();
-    btnGerar.disabled = nome.length === 0 || nome.toLowerCase() === 'zaxio';
+// Função para validar os intervalos de tempo
+function validateTimeIntervals() {
+    const startMinutes = parseInt(document.getElementById('start_minutes').value) || 0;
+    const startSeconds = parseInt(document.getElementById('start_seconds').value) || 0;
+    const endMinutes = parseInt(document.getElementById('end_minutes').value) || 0;
+    const endSeconds = parseInt(document.getElementById('end_seconds').value) || 0;
+
+    const startTotal = (startMinutes * 60) + startSeconds;
+    const endTotal = (endMinutes * 60) + endSeconds;
+
+    return {
+        isValid: startTotal < endTotal,
+        startTotal,
+        endTotal
+    };
+}
+
+// Validar todos os campos quando houver mudança
+['device_name', 'start_minutes', 'start_seconds', 'end_minutes', 'end_seconds'].forEach(id => {
+    document.getElementById(id).addEventListener('input', () => {
+        const nome = inputNome.value.trim();
+        const timeValidation = validateTimeIntervals();
+        
+        if (!timeValidation.isValid) {
+            document.getElementById('end_minutes').setCustomValidity('O intervalo final deve ser maior que o inicial');
+            document.getElementById('end_seconds').setCustomValidity('O intervalo final deve ser maior que o inicial');
+        } else {
+            document.getElementById('end_minutes').setCustomValidity('');
+            document.getElementById('end_seconds').setCustomValidity('');
+        }
+
+        btnGerar.disabled = nome.length === 0 || 
+                           nome.toLowerCase() === 'zaxio' || 
+                           !timeValidation.isValid;
+    });
 });
 
 btnGerar.addEventListener('click', function () {
@@ -28,6 +59,10 @@ btnGerar.addEventListener('click', function () {
         type: "POST",
         data: {
             nome: nome,
+            start_minutes: document.getElementById('start_minutes').value,
+            start_seconds: document.getElementById('start_seconds').value,
+            end_minutes: document.getElementById('end_minutes').value,
+            end_seconds: document.getElementById('end_seconds').value,
             _token: $('meta[name="csrf-token"]').attr('content')
         },
         success: function (data) {

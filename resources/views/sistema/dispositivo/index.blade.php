@@ -38,7 +38,8 @@
                                     <tr>
                                         <th scope="col">Nome</th>
                                         <th scope="col">Status</th>
-                                        {{-- <th scope="col">QT de Enviado/1h</th> --}}
+                                        <th scope="col">Intervalo Inicial</th>
+                                        <th scope="col">Intervalo Final</th>
                                         <th scope="col">Ações</th>
                                     </tr>
                                 </thead>
@@ -72,33 +73,72 @@
         </div>
     </div>
 
-    <!-- Modal -->
-    <div class="modal fade" id="modalUp" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel"
+    <!-- Modal de Edição -->
+    <div class="modal fade" id="modalEdit" tabindex="-1" role="dialog" aria-labelledby="modalEditLabel"
         aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered" role="document">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="py-3 m-0">Atualizar Status</h5>
+                    <h5 class="modal-title" id="modalEditLabel">Editar Dispositivo</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
                 </div>
-                <form action="" method="post">
-                    @csrf
-                    <div class="modal-body text-center">
-                        <div class="form-group">
-                            <label for="">Status</label>
-                            <select class="form-control" name="status" id="status">
-                                <option id="survey_active" value="active">Ativo</option>
-                                <option id="survey_inative" value="inative">Inativo</option>
-                                <option id="survey_closed" value="closed">Encerrado</option>
-                            </select>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="edit_device_name">Nome do dispositivo:</label>
+                        <input type="text" id="edit_device_name" class="form-control" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Intervalo Inicial:</label>
+                        <div class="row">
+                            <div class="col-6">
+                                <div class="input-group">
+                                    <input type="number" id="edit_start_minutes" class="form-control" min="0" placeholder="Minutos" required>
+                                    <div class="input-group-append">
+                                        <span class="input-group-text">min</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="input-group">
+                                    <input type="number" id="edit_start_seconds" class="form-control" min="0" max="59" placeholder="Segundos" required>
+                                    <div class="input-group-append">
+                                        <span class="input-group-text">seg</span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    <div class="modal-footer">
 
-                        <input type="hidden" id="id_survey" name="id_survey">
-                        <button type="submit" class="btn btn-danger btn-sm">salvar</button>
-
+                    <div class="form-group">
+                        <label>Intervalo Final:</label>
+                        <div class="row">
+                            <div class="col-6">
+                                <div class="input-group">
+                                    <input type="number" id="edit_end_minutes" class="form-control" min="0" placeholder="Minutos" required>
+                                    <div class="input-group-append">
+                                        <span class="input-group-text">min</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="input-group">
+                                    <input type="number" id="edit_end_seconds" class="form-control" min="0" max="59" placeholder="Segundos" required>
+                                    <div class="input-group-append">
+                                        <span class="input-group-text">seg</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                </form>
+                </div>
+                <div class="modal-footer">
+                    <input type="hidden" id="edit_device_id">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="btnSaveEdit">Salvar</button>
+                </div>
             </div>
         </div>
     </div>

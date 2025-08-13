@@ -116,6 +116,8 @@ Route::middleware('auth')->group(function () {
         Route::post('/updateStatus', 'updateStatus');
         Route::post('/updateName', 'updateName');
         Route::get('/getStatus', 'getStatus');
+        Route::get('/{id}/get', 'getDevice');
+        Route::post('/update', 'update');
     });
 
     Route::prefix('/mensagem')->controller(MenssageController::class)->group(function () {

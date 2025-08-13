@@ -250,8 +250,8 @@ class CronController extends Controller
             'mediatype' => 'image',
             'mimetype' => 'image/png',
             'caption' => $descricao,
-            // 'media' => $urlImagem,
-            'media' => 'https://th.bing.com/th/id/R.106357017f8bd35d565974dde8072dbb?rik=IjfuQUTQ8pkXFg&pid=ImgRaw&r=0',
+            'media' => $urlImagem,
+            // 'media' => 'https://th.bing.com/th/id/R.106357017f8bd35d565974dde8072dbb?rik=IjfuQUTQ8pkXFg&pid=ImgRaw&r=0',
             'fileName' => 'imagem.png',
         ]);
 

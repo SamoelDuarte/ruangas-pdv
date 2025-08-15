@@ -39,6 +39,11 @@
                     </div>
 
                     <div class="form-group px-3">
+                        <label for="data_ultima_recarga">Última Recarga:</label>
+                        <input type="datetime-local" id="data_ultima_recarga" class="form-control" required>
+                    </div>
+
+                    <div class="form-group px-3">
                         <label>Intervalo Inicial:</label>
                         <div class="row">
                             <div class="col-4">

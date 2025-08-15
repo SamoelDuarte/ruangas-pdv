@@ -111,13 +111,20 @@ Route::middleware('auth')->group(function () {
         Route::post('/gerarQr', 'gerarQr')->name('dispositivo.gerarQr');
         Route::get('/', 'index')->name('dispositivo.index');
         Route::get('/novo', 'create')->name('dispositivo.create');
+        Route::get('/monitor', 'monitorStatus')->name('dispositivo.monitor');
         Route::post('/delete', 'delete')->name('dispositivo.delete');
         Route::get('/getDevices', 'getDevices');
+        Route::get('/getStatusAll', 'getStatusAll');
+        Route::post('/force-status-check', 'forceStatusCheck');
         Route::post('/updateStatus', 'updateStatus');
         Route::post('/updateName', 'updateName');
         Route::get('/getStatus', 'getStatus');
+        Route::post('/check-evolution-status', 'checkEvolutionStatus')->name('dispositivo.checkEvolutionStatus');
         Route::get('/{id}/get', 'getDevice');
         Route::post('/update', 'update');
+        Route::post('/atualizar-ultima-recarga', 'atualizarUltimaRecarga')->name('dispositivo.atualizarUltimaRecarga');
+        Route::post('/update-recarga', 'updateRecarga')->name('dispositivo.updateRecarga');
+        Route::post('/reconectar', 'reconectar')->name('dispositivo.reconectar');
     });
 
     Route::prefix('/mensagem')->controller(MenssageController::class)->group(function () {

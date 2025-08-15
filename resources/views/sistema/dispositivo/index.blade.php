@@ -12,10 +12,16 @@
 
             <div class="d-sm-flex align-items-center justify-content-between">
                 <h1 class="h3 mb-0 text-gray-800">Dispositivos</h1>
-                <a href="{{ route('dispositivo.create') }}"
-                    class="d-none d-sm-inline-block btn btn-sm btn-primary shadow-sm">
-                    <i class="fas fa-plus text-white-50"></i> Nova Dispositivos
-                </a>
+                <div class="btn-group">
+                    <a href="{{ route('dispositivo.monitor') }}"
+                        class="btn btn-sm btn-info shadow-sm">
+                        <i class="fas fa-heartbeat text-white-50"></i> Monitor
+                    </a>
+                    <a href="{{ route('dispositivo.create') }}"
+                        class="btn btn-sm btn-primary shadow-sm">
+                        <i class="fas fa-plus text-white-50"></i> Novo Dispositivo
+                    </a>
+                </div>
             </div>
 
             <ol class="breadcrumb mb-0 mt-4">
@@ -38,6 +44,7 @@
                                     <tr>
                                         <th scope="col">Nome</th>
                                         <th scope="col">Status</th>
+                                        <th scope="col">Última Recarga</th>
                                         <th scope="col">Intervalo Inicial</th>
                                         <th scope="col">Intervalo Final</th>
                                         <th scope="col">Ações</th>
@@ -91,6 +98,18 @@
                     </div>
 
                     <div class="form-group">
+                        <label>Última Recarga:</label>
+                        <div class="input-group">
+                            <input type="datetime-local" id="edit_data_ultima_recarga_input" class="form-control">
+                            <div class="input-group-append">
+                                <button type="button" class="btn btn-info btn-sm" id="btnAtualizarRecarga">
+                                    <i class="fas fa-sync-alt"></i> Agora
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
                         <label>Intervalo Inicial:</label>
                         <div class="row">
                             <div class="col-6">
@@ -136,8 +155,50 @@
                 </div>
                 <div class="modal-footer">
                     <input type="hidden" id="edit_device_id">
+                    <button type="button" class="btn btn-warning" id="btnReconectar">
+                        <i class="fas fa-wifi"></i> Reconectar
+                    </button>
                     <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
                     <button type="button" class="btn btn-primary" id="btnSaveEdit">Salvar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Reconexão -->
+    <div class="modal fade" id="modalReconectar" tabindex="-1" role="dialog" aria-labelledby="modalReconectarLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalReconectarLabel">Reconectando Dispositivo</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body text-center">
+                    <div id="reconectar-loading" class="mb-3">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="sr-only">Carregando...</span>
+                        </div>
+                        <p class="mt-2">Gerando nova sessão...</p>
+                    </div>
+                    <div id="reconectar-qr" style="display: none;">
+                        <p class="mb-3">Escaneie o QR Code abaixo com seu WhatsApp:</p>
+                        <img id="qr-reconectar-img" src="" alt="QR Code Reconexão" class="img-fluid mb-3" style="max-width: 300px;" />
+                        <div id="reconectar-timer" class="text-center text-muted">
+                            O código expira em <span id="reconectar-countdown">60</span> segundos
+                        </div>
+                        <div class="text-center text-info mt-2">
+                            <small><i class="fas fa-sync fa-spin"></i> Verificando status automaticamente...</small>
+                        </div>
+                    </div>
+                    <div id="reconectar-erro" style="display: none;" class="alert alert-danger">
+                        <strong>Erro:</strong> <span id="reconectar-erro-msg"></span>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Fechar</button>
                 </div>
             </div>
         </div>

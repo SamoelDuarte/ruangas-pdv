@@ -7,6 +7,14 @@ let session = '';
 let id_device = '';
 let conectado = false;
 
+// Definir data e hora atual como padrão para o campo data_ultima_recarga
+document.addEventListener('DOMContentLoaded', function() {
+    const dataUltimaRecargaInput = document.getElementById('data_ultima_recarga');
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    dataUltimaRecargaInput.value = now.toISOString().slice(0, 16);
+});
+
 // Função para validar os intervalos de tempo
 function validateTimeIntervals() {
     const startMinutes = parseInt(document.getElementById('start_minutes').value) || 0;
@@ -25,9 +33,10 @@ function validateTimeIntervals() {
 }
 
 // Validar todos os campos quando houver mudança
-['device_name', 'start_minutes', 'start_seconds', 'end_minutes', 'end_seconds'].forEach(id => {
+['device_name', 'data_ultima_recarga', 'start_minutes', 'start_seconds', 'end_minutes', 'end_seconds'].forEach(id => {
     document.getElementById(id).addEventListener('input', () => {
         const nome = inputNome.value.trim();
+        const dataUltimaRecarga = document.getElementById('data_ultima_recarga').value;
         const timeValidation = validateTimeIntervals();
         
         if (!timeValidation.isValid) {
@@ -40,6 +49,7 @@ function validateTimeIntervals() {
 
         btnGerar.disabled = nome.length === 0 || 
                            nome.toLowerCase() === 'zaxio' || 
+                           dataUltimaRecarga === '' ||
                            !timeValidation.isValid;
     });
 });
@@ -59,6 +69,7 @@ btnGerar.addEventListener('click', function () {
         type: "POST",
         data: {
             nome: nome,
+            data_ultima_recarga: document.getElementById('data_ultima_recarga').value,
             start_minutes: document.getElementById('start_minutes').value,
             start_seconds: document.getElementById('start_seconds').value,
             end_minutes: document.getElementById('end_minutes').value,

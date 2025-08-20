@@ -45,6 +45,12 @@ class RolePermissionSeeder extends Seeder
             'gerenciar pedidos',
             'listar pedidos',
             'gerenciar mensagens',
+            'ver carros',
+            'criar carros',
+            'editar carros',
+            'excluir carros',
+            'gerenciar carros',
+            'listar carros',
 
         ];
 

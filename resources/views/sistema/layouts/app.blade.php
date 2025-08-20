@@ -104,6 +104,12 @@
                     </li>
                 @endcan
 
+                @can('gerenciar carros')
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ route('carros.index') }}">Carros</a>
+                    </li>
+                @endcan
+
                 <!-- User Profile with Dropdown, stays to the right -->
                 <li class="nav-item dropdown ms-auto user-info">
                     <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownProfile" role="button"

@@ -3,7 +3,9 @@
 use App\Http\Controllers\Api\MobileAuthController;
 use App\Http\Controllers\Api\MobilePedidoController;
 use App\Http\Controllers\Api\MobileUsuarioController;
+use App\Http\Controllers\AbastecimentoController;
 use App\Http\Controllers\CampaignController;
+use App\Http\Controllers\CarroController;
 use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\ContactsController;
 use App\Http\Controllers\CronController;
@@ -194,6 +196,11 @@ Route::middleware('auth')->group(function () {
     Route::get('/', [HomeController::class, 'index'])->middleware(['auth', 'verified'])->name('dashboard');
 
     Route::get('/buscar-ganhador', [SorteioController::class, 'buscarGanhador']);
+    
+    Route::resource('carros', CarroController::class);
+    Route::post('/abastecimentos', [AbastecimentoController::class, 'store'])->name('abastecimentos.store');
+    Route::get('/carros/{carro}/abastecimentos', [AbastecimentoController::class, 'getAbastecimentos'])->name('abastecimentos.get');
+    Route::delete('/abastecimentos/{abastecimento}', [AbastecimentoController::class, 'destroy'])->name('abastecimentos.destroy');
 });
 
 

@@ -21,6 +21,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Signika:wght@300;400;500;600;700&display=swap"
         rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet">
     <link rel="stylesheet"
         href="https://cdnjs.cloudflare.com/ajax/libs/select2-bootstrap-theme/0.1.0-beta.10/select2-bootstrap.min.css" />
@@ -96,6 +97,13 @@
                     <span>Clientes</span>
                 </a>
             </li> 
+            
+            <li class="nav-item">
+                <a href="{{ route('carros.index') }}" class="nav-link">
+                    <i class="fas fa-car"></i> <!-- Ícone de "Carros" -->
+                    <span>Carros</span>
+                </a>
+            </li>
             
             <li class="nav-item">
                 <a href="{{ route('sorteio.index') }}" class="nav-link">

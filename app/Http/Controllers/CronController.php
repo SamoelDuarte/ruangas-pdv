@@ -273,55 +273,58 @@ class CronController extends Controller
             // Busca mensagens pendentes com mais de 2 minutos
             $mensagensPendentes = \App\Models\MessageQueue::where('status', 'pending')
                 ->where('created_at', '<=', now()->subMinutes(2))
-                ->get();
+                ->get()
+                ->groupBy('device_session'); // Agrupa por dispositivo
 
             if ($mensagensPendentes->isEmpty()) {
                 return response()->json(['status' => 'ok', 'message' => 'Nenhuma mensagem pendente']);
             }
 
-            // Agrupa mensagens por número
-            $mensagensAgrupadas = $mensagensPendentes->groupBy('sender_number');
-            
-            // Monta a mensagem formatada
-            $mensagemFormatada = "🚨 *MENSAGENS PENDENTES* 🚨\n\n";
-            
-            foreach ($mensagensAgrupadas as $numero => $mensagens) {
-                $mensagemFormatada .= "📱 *Número:* " . $numero . "\n";
-                $mensagemFormatada .= "📝 *Quantidade:* " . $mensagens->count() . " mensagem(s)\n";
-                $mensagemFormatada .= "⏰ *Primeira mensagem:* " . $mensagens->first()->created_at->format('H:i:s') . "\n";
-                $mensagemFormatada .= "🔍 *Últimas mensagens:*\n";
-                
-                // Mostra as últimas 3 mensagens
-                foreach ($mensagens->take(3) as $msg) {
-                    $mensagemFormatada .= "- " . substr($msg->message, 0, 50) . "...\n";
-                }
-                
-                $mensagemFormatada .= "\n";
-            }
-
-            $mensagemFormatada .= "📊 *Total de pendências:* " . $mensagensPendentes->count() . "\n";
-            $mensagemFormatada .= "⚠️ Estas mensagens estão aguardando resposta há mais de 2 minutos.";
-
             // Números para notificar
             $numerosNotificar = ['5511986123660', '5511970471094'];
 
-            // Pega um dispositivo ativo
-            $device = Device::where('status', 'open')->first();
-            
-            if (!$device) {
-                Log::error("Nenhum dispositivo ativo para enviar notificação de pendências");
-                return response()->json(['status' => 'erro', 'message' => 'Nenhum dispositivo ativo']);
-            }
+            // Para cada dispositivo
+            foreach ($mensagensPendentes as $deviceSession => $mensagens) {
+                // Agrupa mensagens por remetente para cada dispositivo
+                $mensagensPorRemetente = $mensagens->groupBy('sender_number');
+                
+                foreach ($mensagensPorRemetente as $senderNumber => $mensagensDoRemetente) {
+                    // Pega a última mensagem deste remetente
+                    $ultimaMensagem = $mensagensDoRemetente->sortByDesc('created_at')->first();
+                    
+                    // Formata a mensagem
+                    $mensagemFormatada = "🚨 *NOVA MENSAGEM PENDENTE* 🚨\n\n";
+                    $mensagemFormatada .= "📱 *Número do Cliente:* " . $senderNumber . "\n";
+                    $mensagemFormatada .= "📲 *Dispositivo:* " . $deviceSession . "\n";
+                    $mensagemFormatada .= "💬 *Última Mensagem:* " . $ultimaMensagem->message . "\n";
+                    $mensagemFormatada .= "⏰ *Recebida às:* " . $ultimaMensagem->created_at->format('H:i:s') . "\n";
+                    $mensagemFormatada .= "📝 *Total de mensagens:* " . $mensagensDoRemetente->count() . "\n\n";
+                    
+                    // Tenta usar o mesmo dispositivo que recebeu a mensagem
+                    $device = Device::where('session', $deviceSession)
+                                  ->where('status', 'open')
+                                  ->first();
 
-            // Envia para cada número
-            foreach ($numerosNotificar as $numero) {
-                $this->enviarNotificacao($device->session, $numero, $mensagemFormatada);
+                    if (!$device) {
+                        // Se o dispositivo original não estiver disponível, tenta outro
+                        $device = Device::where('status', 'open')->first();
+                    }
+
+                    if ($device) {
+                        // Envia para cada número de notificação
+                        foreach ($numerosNotificar as $numero) {
+                            $this->enviarNotificacao($device->session, $numero, $mensagemFormatada);
+                        }
+                    } else {
+                        Log::error("Nenhum dispositivo ativo para enviar notificação de pendências");
+                    }
+                }
             }
 
             return response()->json([
                 'status' => 'ok',
                 'message' => 'Notificações enviadas',
-                'total_pendentes' => $mensagensPendentes->count()
+                'total_pendentes' => $mensagensPendentes->flatten()->count()
             ]);
 
         } catch (\Exception $e) {

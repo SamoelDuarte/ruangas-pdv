@@ -292,10 +292,14 @@ class CronController extends Controller
                     // Pega a última mensagem deste remetente
                     $ultimaMensagem = $mensagensDoRemetente->sortByDesc('created_at')->first();
                     
+                    // Busca informações do dispositivo
+                    $deviceInfo = Device::where('session', $deviceSession)->first();
+                    $deviceName = $deviceInfo ? ($deviceInfo->name ?: "Dispositivo #" . $deviceInfo->id) : "Dispositivo Desconhecido";
+
                     // Formata a mensagem
                     $mensagemFormatada = "🚨 *NOVA MENSAGEM PENDENTE* 🚨\n\n";
                     $mensagemFormatada .= "📱 *Número do Cliente:* " . $senderNumber . "\n";
-                    $mensagemFormatada .= "📲 *Dispositivo:* " . $deviceSession . "\n";
+                    $mensagemFormatada .= "📲 *Dispositivo:* " . $deviceName . "\n";
                     $mensagemFormatada .= "💬 *Última Mensagem:* " . $ultimaMensagem->message . "\n";
                     $mensagemFormatada .= "⏰ *Recebida às:* " . $ultimaMensagem->created_at->format('H:i:s') . "\n";
                     $mensagemFormatada .= "📝 *Total de mensagens:* " . $mensagensDoRemetente->count() . "\n\n";

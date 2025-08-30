@@ -267,6 +267,96 @@ class CronController extends Controller
         }
     }
 
+    public function verificarMensagensPendentes()
+    {
+        try {
+            // Busca mensagens pendentes com mais de 2 minutos
+            $mensagensPendentes = \App\Models\MessageQueue::where('status', 'pending')
+                ->where('created_at', '<=', now()->subMinutes(2))
+                ->get();
+
+            if ($mensagensPendentes->isEmpty()) {
+                return response()->json(['status' => 'ok', 'message' => 'Nenhuma mensagem pendente']);
+            }
+
+            // Agrupa mensagens por número
+            $mensagensAgrupadas = $mensagensPendentes->groupBy('sender_number');
+            
+            // Monta a mensagem formatada
+            $mensagemFormatada = "🚨 *MENSAGENS PENDENTES* 🚨\n\n";
+            
+            foreach ($mensagensAgrupadas as $numero => $mensagens) {
+                $mensagemFormatada .= "📱 *Número:* " . $numero . "\n";
+                $mensagemFormatada .= "📝 *Quantidade:* " . $mensagens->count() . " mensagem(s)\n";
+                $mensagemFormatada .= "⏰ *Primeira mensagem:* " . $mensagens->first()->created_at->format('H:i:s') . "\n";
+                $mensagemFormatada .= "🔍 *Últimas mensagens:*\n";
+                
+                // Mostra as últimas 3 mensagens
+                foreach ($mensagens->take(3) as $msg) {
+                    $mensagemFormatada .= "- " . substr($msg->message, 0, 50) . "...\n";
+                }
+                
+                $mensagemFormatada .= "\n";
+            }
+
+            $mensagemFormatada .= "📊 *Total de pendências:* " . $mensagensPendentes->count() . "\n";
+            $mensagemFormatada .= "⚠️ Estas mensagens estão aguardando resposta há mais de 2 minutos.";
+
+            // Números para notificar
+            $numerosNotificar = ['5511986123660', '5511970471094'];
+
+            // Pega um dispositivo ativo
+            $device = Device::where('status', 'open')->first();
+            
+            if (!$device) {
+                Log::error("Nenhum dispositivo ativo para enviar notificação de pendências");
+                return response()->json(['status' => 'erro', 'message' => 'Nenhum dispositivo ativo']);
+            }
+
+            // Envia para cada número
+            foreach ($numerosNotificar as $numero) {
+                $this->enviarNotificacao($device->session, $numero, $mensagemFormatada);
+            }
+
+            return response()->json([
+                'status' => 'ok',
+                'message' => 'Notificações enviadas',
+                'total_pendentes' => $mensagensPendentes->count()
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error("Erro ao verificar mensagens pendentes: " . $e->getMessage());
+            return response()->json(['status' => 'erro', 'message' => $e->getMessage()]);
+        }
+    }
+
+    private function enviarNotificacao($session, $numero, $mensagem)
+    {
+        $client = new Client();
+        $url = "http://147.79.111.119:8080/message/sendText/{$session}";
+
+        $headers = [
+            'Content-Type' => 'application/json',
+            'apikey' => env('TOKEN_EVOLUTION'),
+        ];
+
+        $body = json_encode([
+            'number' => $numero,
+            'text' => $mensagem
+        ]);
+
+        try {
+            $request = new \GuzzleHttp\Psr7\Request('POST', $url, $headers, $body);
+            $response = $client->sendAsync($request)->wait();
+
+            Log::info("Notificação de pendências enviada para {$numero}");
+            return true;
+        } catch (\Exception $e) {
+            Log::error("Erro ao enviar notificação para {$numero}: " . $e->getMessage());
+            return false;
+        }
+    }
+
     public function atualizarWebhooksDispositivos()
     {
         // Pega todos os dispositivos com sessão ativa

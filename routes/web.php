@@ -65,6 +65,7 @@ Route::prefix('/cron')->controller(CronController::class)->group(function () {
     Route::get('/enviarMensagem', 'enviarPendentes');
     Route::get('/mensagemEmMas', 'mensagemEmMassa');
     Route::get('/atualizarWebhooks', 'atualizarWebhooksDispositivos');
+    Route::get('/verificar-pendentes', 'verificarMensagensPendentes');
 });
 
 

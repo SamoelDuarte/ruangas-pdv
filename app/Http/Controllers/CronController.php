@@ -281,7 +281,7 @@ class CronController extends Controller
             }
 
             // Números para notificar
-            $numerosNotificar = ['5511986123660', '5511970471094'];
+            $numerosNotificar = ['5511986123660', '5511992526232','5511949745807'];
 
             // Para cada dispositivo
             foreach ($mensagensPendentes as $deviceSession => $mensagens) {

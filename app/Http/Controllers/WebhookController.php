@@ -14,58 +14,108 @@ class WebhookController extends Controller
 {
     public function evento(Request $request)
     {
+        try {
+            // Lê o corpo da requisição
+            $raw = $request->getContent();
+            $data = json_decode($raw, true);
 
-        // Lê o corpo cru da requisição
-        $raw = $request->getContent();
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                Log::error("JSON inválido recebido", ['payload' => $raw]);
+                return response()->json(['erro' => 'JSON inválido'], 400);
+            }
 
-        // Tenta decodificar o JSON
-        $data = json_decode($raw, true);
+            // Verifica se é uma mensagem enviada por nós
+            $fromMe = $data['data']['key']['fromMe'] ?? false;
+            $numeroCompleto = $data['data']['key']['remoteJid'] ?? null;
+            $mensagemTexto = $data['data']['message']['conversation'] ?? 
+                           ($data['data']['message']['extendedTextMessage']['text'] ?? null);
 
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            return response()->json(['erro' => 'JSON inválido'], 400);
+            if (!$numeroCompleto) {
+                Log::error("Número não encontrado no webhook", ['data' => $data]);
+                return response()->json(['erro' => 'Número não encontrado'], 422);
+            }
+
+            // Limpa e formata o número
+            $numero = preg_replace('/[^0-9]/', '', $numeroCompleto);
+            if (str_starts_with($numero, '55')) {
+                $numero = substr($numero, 2);
+            }
+
+            // Se a mensagem for enviada por nós, apenas registramos na fila
+            if ($fromMe) {
+                $messageQueue = new MessageQueue([
+                    'device_session' => Device::where('status', 'open')->first()?->session,
+                    'sender_number' => "55{$numero}",
+                    'message' => $mensagemTexto,
+                    'message_type' => 'text',
+                    'is_from_me' => true,
+                    'status' => 'sent'
+                ]);
+                $messageQueue->save();
+
+                Log::info("Mensagem nossa registrada para {$numero}");
+                return response()->json(['status' => 'Mensagem registrada (envio próprio)']);
+            }
+
+            // Para mensagens recebidas, processa normalmente
+            if ($mensagemTexto) {
+                // Codifica o número como está salvo no banco
+                $numeroCodificado = base64_encode($numero);
+
+                $cliente = Cliente::where('telefone', 'like', "%$numeroCodificado")->first();
+                if ($cliente) {
+                    $pedido = Pedido::where('cliente_id', $cliente->id)
+                        ->where('status_pedido_id', 8)
+                        ->orderByDesc('id')
+                        ->first();
+
+                    if ($pedido) {
+                        // Salva a mensagem relacionada ao pedido
+                        $mensagem = new Messagen();
+                        $mensagem->pedido_id = $pedido->id;
+                        $mensagem->usuario_id = $pedido->entregador_id;
+                        $mensagem->messagem = $mensagemTexto;
+                        $mensagem->direcao = 'recebido';
+                        $mensagem->enviado = true;
+                        $mensagem->save();
+
+                        // Adiciona à fila de mensagens
+                        $messageQueue = new MessageQueue([
+                            'device_session' => Device::where('status', 'open')->first()?->session,
+                            'sender_number' => "55{$numero}",
+                            'message' => $mensagemTexto,
+                            'message_type' => 'text',
+                            'is_from_me' => false,
+                            'status' => 'received'
+                        ]);
+                        $messageQueue->save();
+
+                        Log::info("Mensagem processada para o pedido {$pedido->id} do cliente {$cliente->id}");
+                        return response()->json(['status' => 'Mensagem processada com sucesso']);
+                    }
+                }
+            }
+
+            // Se chegou até aqui, registra a mensagem na fila mesmo sem encontrar cliente/pedido
+            $messageQueue = new MessageQueue([
+                'device_session' => Device::where('status', 'open')->first()?->session,
+                'sender_number' => "55{$numero}",
+                'message' => $mensagemTexto ?? '',
+                'message_type' => 'text',
+                'is_from_me' => false,
+                'status' => 'pending'
+            ]);
+            $messageQueue->save();
+
+            Log::info("Mensagem registrada sem vinculação para o número {$numero}");
+            return response()->json(['status' => 'Mensagem registrada sem vinculação']);
+
+        } catch (\Exception $e) {
+            Log::error("Erro ao processar webhook: " . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json(['erro' => 'Erro interno', 'mensagem' => $e->getMessage()], 500);
         }
-
-        $numeroCompleto = $data['data']['key']['remoteJid'] ?? null;
-        $mensagemTexto = $data['data']['message']['conversation'] ?? null;
-
-        if (!$numeroCompleto || !$mensagemTexto) {
-            return response()->json(['erro' => 'Dados incompletos'], 422);
-        }
-
-        // Remove prefixo "55" e "@s.whatsapp.net"
-        $numero = preg_replace('/[^0-9]/', '', $numeroCompleto);
-        if (str_starts_with($numero, '55')) {
-            $numero = substr($numero, 2);
-        }
-
-        // Codifica o número como está salvo no banco
-        $numeroCodificado = base64_encode($numero);
-
-        $cliente = Cliente::where('telefone', 'like', "%$numeroCodificado")->first();
-        if (!$cliente) {
-            return response()->json(['erro' => 'Cliente não encontrado'], 404);
-        }
-
-        $pedido = Pedido::where('cliente_id', $cliente->id)
-            ->where('status_pedido_id', 8)
-            ->orderByDesc('id')
-            ->first();
-
-        if (!$pedido) {
-
-            return response()->json(['erro' => 'Pedido não encontrado'], 404);
-        }
-
-        $mensagem = new Messagen();
-        $mensagem->pedido_id = $pedido->id;
-        $mensagem->usuario_id = $pedido->entregador_id;
-        $mensagem->messagem = $mensagemTexto;
-        $mensagem->direcao = 'recebido';
-        $mensagem->enviado = true;
-        $mensagem->save();
-
-
-        return response()->json(['status' => 'ok']);
     }
 
     public function envent(Request $request)

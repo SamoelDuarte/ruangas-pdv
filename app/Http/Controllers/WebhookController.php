@@ -43,6 +43,12 @@ class WebhookController extends Controller
 
             // Se a mensagem for enviada por nós, apenas registramos na fila
             if ($fromMe) {
+                // Quando enviamos uma mensagem, marcar mensagens pendentes como respondidas
+                MessageQueue::where('sender_number', "55{$numero}")
+                    ->where('status', 'pending')
+                    ->update(['status' => 'answered']);
+
+                // Registra nossa mensagem de resposta
                 $messageQueue = new MessageQueue([
                     'device_session' => Device::where('status', 'open')->first()?->session,
                     'sender_number' => "55{$numero}",
@@ -53,8 +59,8 @@ class WebhookController extends Controller
                 ]);
                 $messageQueue->save();
 
-                Log::info("Mensagem nossa registrada para {$numero}");
-                return response()->json(['status' => 'Mensagem registrada (envio próprio)']);
+                Log::info("Mensagem nossa registrada e mensagens pendentes marcadas como respondidas para {$numero}");
+                return response()->json(['status' => 'Mensagem registrada e pendências atualizadas']);
             }
 
             // Para mensagens recebidas, processa normalmente

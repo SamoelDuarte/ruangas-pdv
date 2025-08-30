@@ -35,6 +35,12 @@ class WebhookController extends Controller
                 return response()->json(['erro' => 'Número não encontrado'], 422);
             }
 
+            // Ignora mensagens de grupo (números que contêm @g.us)
+            if (strpos($numeroCompleto, '@g.us') !== false) {
+                Log::info("Mensagem de grupo ignorada", ['numero' => $numeroCompleto]);
+                return response()->json(['status' => 'Mensagem de grupo ignorada']);
+            }
+
             // Limpa e formata o número
             $numero = preg_replace('/[^0-9]/', '', $numeroCompleto);
             if (str_starts_with($numero, '55')) {

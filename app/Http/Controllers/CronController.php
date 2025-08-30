@@ -316,8 +316,24 @@ class CronController extends Controller
 
                     if ($device) {
                         // Envia para cada número de notificação
+                        $notificacoesEnviadas = true;
                         foreach ($numerosNotificar as $numero) {
-                            $this->enviarNotificacao($device->session, $numero, $mensagemFormatada);
+                            if (!$this->enviarNotificacao($device->session, $numero, $mensagemFormatada)) {
+                                $notificacoesEnviadas = false;
+                                break;
+                            }
+                        }
+
+                        // Se todas as notificações foram enviadas com sucesso, apaga as mensagens
+                        if ($notificacoesEnviadas) {
+                            $mensagensDoRemetente->each(function($mensagem) {
+                                $mensagem->delete();
+                            });
+                            Log::info("Mensagens pendentes deletadas após notificação", [
+                                'sender' => $senderNumber,
+                                'device' => $deviceSession,
+                                'quantidade' => $mensagensDoRemetente->count()
+                            ]);
                         }
                     } else {
                         Log::error("Nenhum dispositivo ativo para enviar notificação de pendências");

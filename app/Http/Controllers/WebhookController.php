@@ -43,24 +43,13 @@ class WebhookController extends Controller
 
             // Se a mensagem for enviada por nós, apenas registramos na fila
             if ($fromMe) {
-                // Quando enviamos uma mensagem, deletar mensagens pendentes deste número
+                // Quando enviamos uma mensagem, apenas deletar as mensagens pendentes deste número
                 MessageQueue::where('sender_number', "55{$numero}")
                     ->where('status', 'pending')
                     ->delete();
 
-                // Registra nossa mensagem de resposta
-                $messageQueue = new MessageQueue([
-                    'device_session' => Device::where('status', 'open')->first()?->session,
-                    'sender_number' => "55{$numero}",
-                    'message' => $mensagemTexto,
-                    'message_type' => 'text',
-                    'is_from_me' => true,
-                    'status' => 'sent'
-                ]);
-                $messageQueue->save();
-
-                Log::info("Mensagem nossa registrada e mensagens pendentes deletadas para {$numero}");
-                return response()->json(['status' => 'Mensagem registrada e pendências removidas']);
+                Log::info("Mensagens pendentes deletadas para {$numero}");
+                return response()->json(['status' => 'Mensagens pendentes removidas']);
             }
 
             // Para mensagens recebidas, processa normalmente

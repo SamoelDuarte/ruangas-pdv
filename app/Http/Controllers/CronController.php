@@ -288,7 +288,7 @@ class CronController extends Controller
                 $body = json_encode([
                     'webhook' => [
                         'enabled' => true,
-                        'url' => 'https://ruan.betasolucao.com.br/event',
+                        'url' => 'https://pdv.betasolucao.com.br/event',
                         'headers' => [
                             'authorization' => 'Bearer ' . env('TOKEN_EVOLUTION'),
                             'Content-Type' => 'application/json'

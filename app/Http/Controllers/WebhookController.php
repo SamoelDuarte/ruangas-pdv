@@ -76,7 +76,7 @@ class WebhookController extends Controller
 
                         // Adiciona à fila de mensagens
                         $messageQueue = new MessageQueue([
-                            'device_session' => Device::where('status', 'open')->first()?->session,
+                            'device_session' => $data['instance'] ?? null,
                             'sender_number' => "55{$numero}",
                             'message' => $mensagemTexto,
                             'message_type' => 'text',
@@ -93,7 +93,7 @@ class WebhookController extends Controller
 
             // Se chegou até aqui, registra a mensagem na fila mesmo sem encontrar cliente/pedido
             $messageQueue = new MessageQueue([
-                'device_session' => Device::where('status', 'open')->first()?->session,
+                'device_session' => $data['instance'] ?? null,
                 'sender_number' => "55{$numero}",
                 'message' => $mensagemTexto ?? '',
                 'message_type' => 'text',

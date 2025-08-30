@@ -475,7 +475,7 @@ class DeviceController extends Controller
             $body = json_encode([
                 'webhook' => [
                     'enabled' => true,
-                    'url' => 'https://ruan.betasoluao.com.br/envent',
+                    'url' => 'https://pdv.betasolucao.com.br/event',
                     'headers' => [
                         'authorization' => 'Bearer ' . env('TOKEN_EVOLUTION'),
                         'Content-Type' => 'application/json'

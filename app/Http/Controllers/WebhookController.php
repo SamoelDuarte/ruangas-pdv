@@ -3,9 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\Cliente;
+use App\Models\Device;
+use App\Models\MessageQueue;
 use App\Models\Messagen;
 use App\Models\Pedido;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class WebhookController extends Controller
 {
@@ -49,7 +52,7 @@ class WebhookController extends Controller
             ->first();
 
         if (!$pedido) {
-         
+
             return response()->json(['erro' => 'Pedido não encontrado'], 404);
         }
 
@@ -61,7 +64,93 @@ class WebhookController extends Controller
         $mensagem->enviado = true;
         $mensagem->save();
 
-       
+
         return response()->json(['status' => 'ok']);
+    }
+
+    public function envent(Request $request)
+    {
+        try {
+            // Lê o corpo da requisição
+            $payload = $request->getContent();
+            $data = json_decode($payload, true);
+
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                Log::error("JSON inválido recebido no webhook", ['payload' => $payload]);
+                return response()->json(['error' => 'JSON inválido'], 400);
+            }
+
+            // Extrai informações básicas
+            $instance = $data['instance'] ?? null;
+            $event = $data['event'] ?? null;
+
+            if (!$instance || !$event) {
+                Log::error("Dados incompletos no webhook", ['data' => $data]);
+                return response()->json(['error' => 'Dados incompletos'], 422);
+            }
+
+            Log::info("Evento recebido", [
+                'instance' => $instance,
+                'event' => $event,
+                'data' => $data
+            ]);
+
+            $this->processarEventoMensagem($instance, $data['data'] ?? []);
+
+            return response()->json(['status' => 'ok']);
+        } catch (\Exception $e) {
+            Log::error("Erro ao processar webhook: " . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json(['error' => 'Erro interno'], 500);
+        }
+    }
+
+
+    private function processarEventoMensagem($instance, $data)
+    {
+        try {
+            Log::info("Evento de mensagem processado", [
+                'instance' => $instance,
+                'data' => $data
+            ]);
+
+            // Extrai os dados relevantes da mensagem
+            $remoteJid = $data['key']['remoteJid'] ?? null;
+            $messageType = $data['messageType'] ?? 'text';
+            $messageContent = '';
+            $isFromMe = $data['key']['fromMe'] ?? false;
+
+            // Determina o conteúdo da mensagem com base no tipo
+            if (isset($data['message'])) {
+                if (isset($data['message']['conversation'])) {
+                    $messageContent = $data['message']['conversation'];
+                } elseif (isset($data['message']['extendedTextMessage'])) {
+                    $messageContent = $data['message']['extendedTextMessage']['text'];
+                }
+                // Adicione outros tipos de mensagem conforme necessário
+            }
+
+            if ($remoteJid && $messageContent) {
+                // Cria uma nova mensagem na fila
+                $queueMessage = new MessageQueue([
+                    'device_session' => $instance,
+                    'sender_number' => $remoteJid,
+                    'message' => $messageContent,
+                    'message_type' => $messageType,
+                    'is_from_me' => $isFromMe,
+                    'status' => 'pending'
+                ]);
+
+                $queueMessage->save();
+
+                Log::info("Mensagem adicionada à fila", [
+                    'message_id' => $queueMessage->id,
+                    'device' => $instance
+                ]);
+            }
+        } catch (\Exception $e) {
+            Log::error("Erro ao processar evento de mensagem: " . $e->getMessage());
+        }
     }
 }

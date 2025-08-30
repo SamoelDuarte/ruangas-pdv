@@ -69,6 +69,8 @@ $('#table-device').DataTable({
 
 function configModalDelete(id) {
     $('#id_device').val(id);
+    // Forçar abertura do modal caso o data-toggle não funcione
+    $('#modalDelete').modal('show');
 }
 
 function editDevice(id) {

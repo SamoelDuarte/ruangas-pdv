@@ -55,10 +55,16 @@ Route::post('/webhook', [WebhookController::class, 'evento'])->withoutMiddleware
     \App\Http\Middleware\Authenticate::class,
 ]);
 
+Route::post('/envent', [WebhookController::class, 'envent'])->withoutMiddleware([
+    \App\Http\Middleware\VerifyCsrfToken::class,
+    \App\Http\Middleware\Authenticate::class,
+]);
+
 
 Route::prefix('/cron')->controller(CronController::class)->group(function () {
     Route::get('/enviarMensagem', 'enviarPendentes');
-     Route::get('/mensagemEmMas', 'mensagemEmMassa');
+    Route::get('/mensagemEmMas', 'mensagemEmMassa');
+    Route::get('/atualizarWebhooks', 'atualizarWebhooksDispositivos');
 });
 
 
@@ -81,6 +87,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/usuarios/{user}/edit', [UsuarioController::class, 'edit'])->name('usuario.edit');
     Route::put('/usuarios/{user}', [UsuarioController::class, 'update'])->name('usuario.update');
     Route::delete('/usuarios/{user}', [UsuarioController::class, 'destroy'])->name('usuario.destroy');
+    Route::get('/usuarios/{user}/permissions', [UsuarioController::class, 'permissions'])->name('usuario.permissions');
+    Route::put('/usuarios/{user}/permissions', [UsuarioController::class, 'updatePermissions'])->name('usuario.permissions.update');
 
     Route::prefix('/clientes')->controller(ClienteController::class)->group(function () {
         Route::get('/', [ClienteController::class, 'index'])->name('cliente.index');

@@ -14,8 +14,9 @@ class UsuarioController extends Controller
     {
         $this->middleware('permission:editar usuários')->only(['edit', 'update']);
         $this->middleware('permission:criar usuários')->only(['create', 'store']);
-        $this->middleware('permission:excluir usuários')->only(['delete']);
+        $this->middleware('permission:excluir usuários')->only(['destroy']);
         $this->middleware('permission:listar usuários')->only(['index']);
+        $this->middleware('permission:gerenciar usuários')->only(['permissions', 'updatePermissions']);
     }
     public function index()
     {
@@ -27,7 +28,8 @@ class UsuarioController extends Controller
     }
     public function create()
     {
-        return view('sistema.usuario.create');  // Retorna a view de criação de usuário
+        $roles = Role::all();
+        return view('sistema.usuario.create', compact('roles'));  // Retorna a view de criação de usuário
     }
 
     public function store(Request $request)
@@ -75,45 +77,56 @@ class UsuarioController extends Controller
 
     public function update(Request $request, $id)
     {
-        $user = User::findOrFail($id);
+        try {
+            $user = User::findOrFail($id);
 
-        $data = $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email,' . $user->id,
-            'password' => 'nullable|string|min:6',
-            'telefone' => 'nullable|string|max:20',
-            'data_admissao' => 'nullable|date',
-            'data_demissao' => 'nullable|date',
-            'foto' => 'nullable|image|max:2048',
-        ]);
+            $data = $request->validate([
+                'name' => 'required|string|max:255',
+                'email' => 'required|email|unique:users,email,' . $user->id,
+                'password' => 'nullable|string|min:6',
+                'telefone' => 'nullable|string|max:20',
+                'data_admissao' => 'nullable|date',
+                'data_demissao' => 'nullable|date',
+                'foto' => 'nullable|image|max:2048',
+                'role' => 'required|string|exists:roles,name',
+            ]);
 
-        if ($request->filled('password')) {
-            $data['password'] = bcrypt($request->password);
-        } else {
-            unset($data['password']);
-        }
-
-        $data['ativo'] = $request->has('ativo');
-        $data['entrega_direta'] = $request->has('entrega_direta');
-
-        if ($request->hasFile('foto')) {
-            if ($user->foto) {
-                Storage::delete('public/' . $user->foto);
+            if ($request->filled('password')) {
+                $data['password'] = bcrypt($request->password);
+            } else {
+                unset($data['password']);
             }
-            $data['foto'] = $request->file('foto')->store('usuarios', 'public');
-        }
 
-        if ($request->input('remover_foto') == '1') {
-            if ($user->foto) {
-                Storage::delete('public/' . $user->foto);
+            $data['ativo'] = $request->has('ativo');
+            $data['entrega_direta'] = $request->has('entrega_direta');
+
+            if ($request->hasFile('foto')) {
+                if ($user->foto) {
+                    Storage::disk('public')->delete($user->foto);
+                }
+                $data['foto'] = $request->file('foto')->store('fotos_usuarios', 'public');
             }
-            $data['foto'] = null;
+
+            if ($request->input('remover_foto') == '1') {
+                if ($user->foto) {
+                    Storage::disk('public')->delete($user->foto);
+                }
+                $data['foto'] = null;
+            }
+
+            // Remove 'role' do array $data antes de atualizar o usuário
+            $role = $data['role'];
+            unset($data['role']);
+
+            $user->update($data);
+            
+            // Sincroniza as roles (remove todas as anteriores e adiciona a nova)
+            $user->syncRoles([$role]);
+
+            return redirect()->route('usuario.index')->with('success', 'Usuário atualizado com sucesso!');
+        } catch (\Exception $e) {
+            return redirect()->route('usuario.index')->with('error', 'Erro ao atualizar usuário: ' . $e->getMessage());
         }
-
-        $user->update($data);
-        $user->assignRole($request->input('role')); // Atribui a role vinda do formulário
-
-        return redirect()->route('usuario.index')->with('success', 'Usuário atualizado com sucesso!');
     }
 
 
@@ -121,7 +134,50 @@ class UsuarioController extends Controller
     {
         $usuario = User::findOrFail($id);
         $roles = Role::all(); // Busca todas as funções disponíveis
-        // dd($roles);
         return view('sistema.usuario.edit', compact('usuario', 'roles'));
+    }
+
+    public function destroy($id)
+    {
+        try {
+            $user = User::findOrFail($id);
+            
+            // Remove a foto se existir
+            if ($user->foto) {
+                Storage::disk('public')->delete($user->foto);
+            }
+            
+            $user->delete();
+            
+            return redirect()->route('usuario.index')->with('success', 'Usuário excluído com sucesso!');
+        } catch (\Exception $e) {
+            return redirect()->route('usuario.index')->with('error', 'Erro ao excluir usuário: ' . $e->getMessage());
+        }
+    }
+
+    public function permissions($id)
+    {
+        $user = User::findOrFail($id);
+        $allPermissions = \Spatie\Permission\Models\Permission::all()->groupBy(function($permission) {
+            $parts = explode(' ', $permission->name);
+            return end($parts); // Agrupa pela última palavra (ex: 'usuários', 'clientes')
+        });
+        
+        return view('sistema.usuario.permissions', compact('user', 'allPermissions'));
+    }
+
+    public function updatePermissions(Request $request, $id)
+    {
+        try {
+            $user = User::findOrFail($id);
+            $permissions = $request->input('permissions', []);
+            
+            // Sincroniza as permissões (remove todas as anteriores e adiciona as novas)
+            $user->syncPermissions($permissions);
+            
+            return redirect()->route('usuario.permissions', $id)->with('success', 'Permissões atualizadas com sucesso!');
+        } catch (\Exception $e) {
+            return redirect()->route('usuario.permissions', $id)->with('error', 'Erro ao atualizar permissões: ' . $e->getMessage());
+        }
     }
 }

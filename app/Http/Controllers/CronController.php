@@ -266,4 +266,69 @@ class CronController extends Controller
             return false;
         }
     }
+
+    public function atualizarWebhooksDispositivos()
+    {
+        // Pega todos os dispositivos com sessão ativa
+        $devices = Device::whereNotNull('session')
+                         ->where('status', 'open')
+                         ->get();
+
+        $client = new Client();
+        $sucessos = 0;
+        $erros = 0;
+
+        foreach ($devices as $device) {
+            try {
+                $headers = [
+                    'Content-Type' => 'application/json',
+                    'apikey' => env('TOKEN_EVOLUTION'),
+                ];
+
+                $body = json_encode([
+                    'webhook' => [
+                        'enabled' => true,
+                        'url' => 'https://ruan.betasolucao.com.br/event',
+                        'headers' => [
+                            'authorization' => 'Bearer ' . env('TOKEN_EVOLUTION'),
+                            'Content-Type' => 'application/json'
+                        ],
+                        'byEvents' => false,
+                        'base64' => false,
+                        'events' => [
+                            'MESSAGES_UPSERT'
+                        ]
+                    ]
+                ]);
+
+                $url = "http://147.79.111.119:8080/webhook/set/{$device->session}";
+                $request = new \GuzzleHttp\Psr7\Request('POST', $url, $headers, $body);
+                $response = $client->sendAsync($request)->wait();
+
+                if ($response->getStatusCode() === 200) {
+                    Log::info("Webhook atualizado com sucesso para dispositivo {$device->id} (sessão: {$device->session})");
+                    $sucessos++;
+                } else {
+                    Log::warning("Resposta inesperada ao atualizar webhook do dispositivo {$device->id}: " . $response->getStatusCode());
+                    $erros++;
+                }
+
+            } catch (\Exception $e) {
+                Log::error("Erro ao atualizar webhook do dispositivo {$device->id}: " . $e->getMessage());
+                $erros++;
+            }
+        }
+
+        $mensagem = "Webhooks atualizados: {$sucessos} sucessos, {$erros} erros";
+        Log::info($mensagem);
+        
+        return response()->json([
+            'status' => 'concluido',
+            'sucessos' => $sucessos,
+            'erros' => $erros,
+            'total_dispositivos' => $devices->count(),
+            'mensagem' => $mensagem
+        ]);
+    }
+
 }

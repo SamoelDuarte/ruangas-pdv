@@ -61,7 +61,9 @@ class MenssageController extends Controller
     {
         $imagens = ImagemEmMassa::all();
         $contacts = Contact::withCount('contactLists')->get();
-        $devices = Device::where('status', 'open')->get(); // 👈 aqui
+        $devices = Device::where('status', 'open')
+                         ->where('name', 'not like', '-%')
+                         ->get();
 
         return view('sistema.message.create', compact('imagens', 'contacts', 'devices'));
     }

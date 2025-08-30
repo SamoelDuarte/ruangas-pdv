@@ -10,6 +10,21 @@
                 <li class="breadcrumb-item active" aria-current="page">Editar Usuário</li>
             </ol>
         </div>
+
+        @if(session('success'))
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                {{ session('success') }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        @endif
+
+        @if(session('error'))
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                {{ session('error') }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        @endif
+
         <!-- Content Row -->
         <div class="row">
             <!-- Content Column -->
@@ -65,7 +80,7 @@
                                         <label for="entrega_direta" class="form-label">Entrega Direta</label>
                                         <input type="checkbox" class="form-check-input" id="entrega_direta"
                                             name="entrega_direta"
-                                            {{ old('ativo', $usuario->entrega_direta ? 'checked' : '') }}>
+                                            {{ old('entrega_direta', $usuario->entrega_direta) ? 'checked' : '' }}>
                                     </div>
 
                                     <div class="mb-3">

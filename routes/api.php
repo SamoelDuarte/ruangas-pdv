@@ -24,6 +24,14 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
 
+// Message Queue Routes
+Route::prefix('message-queue')->group(function () {
+    Route::post('/', 'App\Http\Controllers\MessageQueueController@store');
+    Route::get('/', 'App\Http\Controllers\MessageQueueController@list');
+    Route::delete('/{id}', 'App\Http\Controllers\MessageQueueController@delete');
+    Route::get('/device/{deviceSession}', 'App\Http\Controllers\MessageQueueController@getMessagesForDevice');
+});
+
 Route::prefix('mobile')->group(function () {
 
     // rota de login, que NÃO precisa do token fixo da app

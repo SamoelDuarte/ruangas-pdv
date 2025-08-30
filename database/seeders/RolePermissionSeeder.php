@@ -61,12 +61,22 @@ class RolePermissionSeeder extends Seeder
         // Criar funções e atribuir permissões
         $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $atendenteRole = Role::firstOrCreate(['name' => 'atendente']);
+        $entregadorRole = Role::firstOrCreate(['name' => 'entregador']);
 
         // Admin tem todas as permissões
         $adminRole->syncPermissions($permissions);
 
-        // Atendente tem apenas algumas permissões
-        $atendenteRole->syncPermissions(['ver clientes', 'criar clientes']);
+        // Atendente tem permissões relacionadas a clientes e pedidos
+        $atendenteRole->syncPermissions([
+            'ver clientes', 'criar clientes', 'editar clientes', 'listar clientes',
+            'ver pedidos', 'criar pedidos', 'editar pedidos', 'listar pedidos'
+        ]);
+
+        // Entregador tem permissões limitadas
+        $entregadorRole->syncPermissions([
+            'ver pedidos', 'listar pedidos', 
+            'ver clientes', 'listar clientes'
+        ]);
 
         // Atribuir função Admin ao usuário padrão
         $admin = User::where('email', 'ruangasacesso5@gmail.com')->first();

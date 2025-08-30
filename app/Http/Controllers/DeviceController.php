@@ -6,6 +6,7 @@ use App\Models\Device;
 use GuzzleHttp\Client;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Log;
 use Yajra\DataTables\Facades\DataTables;
 
 class DeviceController extends Controller
@@ -67,6 +68,9 @@ class DeviceController extends Controller
         $device->save();
 
         $qrcode = $this->getQrCode($device->session);
+        
+        // Configurar webhook para o novo dispositivo
+        $this->configurarWebhookDevice($device->session);
 
         return response()->json([
             'session' => $device->session,
@@ -88,7 +92,7 @@ class DeviceController extends Controller
                         <a href="#" class="btn btn-sm btn-info edit" onclick="editDevice(' . $device->id . ')">
                             <i class="fas fa-edit"></i>
                         </a> 
-                        <a href="#" class="btn btn-sm btn-danger delete" onclick="configModalDelete(' . $device->id . ')">
+                        <a href="#" class="btn btn-sm btn-danger delete" data-toggle="modal" data-target="#modalDelete" onclick="configModalDelete(' . $device->id . ')">
                             <i class="far fa-trash-alt"></i>
                         </a>
                     </div>
@@ -390,6 +394,9 @@ class DeviceController extends Controller
 
             // Gerar novo QR code
             $qrcode = $this->getQrCode($device->session);
+            
+            // Configurar webhook para o dispositivo reconectado
+            $this->configurarWebhookDevice($device->session);
 
             if ($qrcode) {
                 return response()->json([
@@ -449,6 +456,55 @@ class DeviceController extends Controller
                 'success' => false,
                 'message' => 'Erro ao atualizar última recarga: ' . $e->getMessage()
             ], 500);
+        }
+    }
+
+    /**
+     * Configura o webhook para um dispositivo específico
+     */
+    private function configurarWebhookDevice($session)
+    {
+        try {
+            $client = new Client();
+            
+            $headers = [
+                'Content-Type' => 'application/json',
+                'apikey' => env('TOKEN_EVOLUTION'),
+            ];
+
+            $body = json_encode([
+                'webhook' => [
+                    'enabled' => true,
+                    'url' => 'https://ruan.betasoluao.com.br/envent',
+                    'headers' => [
+                        'authorization' => 'Bearer ' . env('TOKEN_EVOLUTION'),
+                        'Content-Type' => 'application/json'
+                    ],
+                    'byEvents' => false,
+                    'base64' => false,
+                    'events' => [
+                        'MESSAGES_UPSERT'
+                    ]
+                ]
+            ]);
+
+            $url = env('APP_URL_ZAP') . "/webhook/set/{$session}";
+            $response = $client->request('POST', $url, [
+                'headers' => $headers,
+                'body' => $body
+            ]);
+
+            if ($response->getStatusCode() === 200) {
+                Log::info("Webhook configurado com sucesso para sessão: {$session}");
+                return true;
+            } else {
+                Log::warning("Resposta inesperada ao configurar webhook da sessão {$session}: " . $response->getStatusCode());
+                return false;
+            }
+
+        } catch (\Exception $e) {
+            Log::error("Erro ao configurar webhook da sessão {$session}: " . $e->getMessage());
+            return false;
         }
     }
 }

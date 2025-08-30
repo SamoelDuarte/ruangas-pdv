@@ -20,6 +20,21 @@
             </ol>
 
         </div>
+
+        @if(session('success'))
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                {{ session('success') }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        @endif
+
+        @if(session('error'))
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                {{ session('error') }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        @endif
+
         <!-- Content Row -->
         <div class="row">
             <!-- Content Column -->
@@ -35,6 +50,8 @@
                                         <th>ID</th>
                                         <th>Nome</th>
                                         <th>Email</th>
+                                        <th>Função</th>
+                                        <th>Status</th>
                                         <th>Ações</th>
                                     </tr>
                                 </thead>
@@ -45,20 +62,41 @@
                                             <td>{{ $user->name }}</td>
                                             <td>{{ $user->email }}</td>
                                             <td>
-                                                <!-- Botões de Editar e Deletar, com controle de permissões -->
-                                                @can('editar usuário')
-                                                    <a href="{{ route('usuario.edit', $user->id) }}" class="btn"
-                                                        title="EDITAR">
+                                                @if($user->roles->count() > 0)
+                                                    <span class="badge badge-primary">
+                                                        {{ ucfirst($user->roles->first()->name) }}
+                                                    </span>
+                                                @else
+                                                    <span class="badge badge-secondary">Sem função</span>
+                                                @endif
+                                            </td>
+                                            <td>
+                                                @if($user->ativo)
+                                                    <span class="badge badge-success">Ativo</span>
+                                                @else
+                                                    <span class="badge badge-danger">Inativo</span>
+                                                @endif
+                                            </td>
+                                            <td>
+                                                <!-- Botões de ação com controle de permissões -->
+                                                @can('editar usuários')
+                                                    <a href="{{ route('usuario.edit', $user->id) }}" class="btn btn-sm btn-outline-primary" title="Editar">
                                                         <i class="fa fa-pencil-alt"></i>
                                                     </a>
                                                 @endcan
 
-                                                @can('excluir usuário')
+                                                @can('gerenciar usuários')
+                                                    <a href="{{ route('usuario.permissions', $user->id) }}" class="btn btn-sm btn-outline-info" title="Gerenciar Permissões">
+                                                        <i class="fa fa-key"></i>
+                                                    </a>
+                                                @endcan
+
+                                                @can('excluir usuários')
                                                     <form action="{{ route('usuario.destroy', $user->id) }}" method="POST"
-                                                        style="display:inline;">
+                                                        style="display:inline;" onsubmit="return confirm('Tem certeza que deseja excluir este usuário?')">
                                                         @csrf
                                                         @method('DELETE')
-                                                        <button type="submit" class="btn" title="DELETAR">
+                                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Excluir">
                                                             <i class="fa fa-trash"></i>
                                                         </button>
                                                     </form>

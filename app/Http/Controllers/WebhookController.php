@@ -30,6 +30,12 @@ class WebhookController extends Controller
             $mensagemTexto = $data['data']['message']['conversation'] ?? 
                            ($data['data']['message']['extendedTextMessage']['text'] ?? null);
 
+            // Verifica se a mensagem está vazia logo no início
+            if (empty(trim($mensagemTexto ?? ''))) {
+                Log::info("Mensagem vazia ignorada");
+                return response()->json(['status' => 'Mensagem vazia ignorada']);
+            }
+
             if (!$numeroCompleto) {
                 Log::error("Número não encontrado no webhook", ['data' => $data]);
                 return response()->json(['erro' => 'Número não encontrado'], 422);
@@ -97,19 +103,41 @@ class WebhookController extends Controller
                 }
             }
 
-            // Se chegou até aqui, registra a mensagem na fila mesmo sem encontrar cliente/pedido
+            // Verifica se a mensagem não está vazia
+            if (empty(trim($mensagemTexto ?? ''))) {
+                Log::info("Mensagem vazia ignorada para o número {$numero}");
+                return response()->json(['status' => 'Mensagem vazia ignorada']);
+            }
+
+            // Verifica se já existe uma mensagem pendente deste número
+            $existingMessage = MessageQueue::where('sender_number', "55{$numero}")
+                ->where('status', 'pending')
+                ->first();
+
+            if ($existingMessage) {
+                // Atualiza a mensagem existente
+                $existingMessage->message = $mensagemTexto;
+                $existingMessage->device_session = $data['instance'] ?? null;
+                $existingMessage->updated_at = now();
+                $existingMessage->save();
+
+                Log::info("Mensagem atualizada para o número {$numero}");
+                return response()->json(['status' => 'Mensagem atualizada']);
+            }
+
+            // Se não existe, cria uma nova mensagem na fila
             $messageQueue = new MessageQueue([
                 'device_session' => $data['instance'] ?? null,
                 'sender_number' => "55{$numero}",
-                'message' => $mensagemTexto ?? '',
+                'message' => $mensagemTexto,
                 'message_type' => 'text',
                 'is_from_me' => false,
                 'status' => 'pending'
             ]);
             $messageQueue->save();
 
-            Log::info("Mensagem registrada sem vinculação para o número {$numero}");
-            return response()->json(['status' => 'Mensagem registrada sem vinculação']);
+            Log::info("Nova mensagem registrada para o número {$numero}");
+            return response()->json(['status' => 'Nova mensagem registrada']);
 
         } catch (\Exception $e) {
             Log::error("Erro ao processar webhook: " . $e->getMessage(), [
@@ -182,23 +210,47 @@ class WebhookController extends Controller
                 // Adicione outros tipos de mensagem conforme necessário
             }
 
-            if ($remoteJid && $messageContent) {
-                // Cria uma nova mensagem na fila
-                $queueMessage = new MessageQueue([
-                    'device_session' => $instance,
-                    'sender_number' => $remoteJid,
-                    'message' => $messageContent,
-                    'message_type' => $messageType,
-                    'is_from_me' => $isFromMe,
-                    'status' => 'pending'
-                ]);
+            // Verifica se a mensagem está vazia logo após extraí-la
+            if (empty(trim($messageContent ?? ''))) {
+                Log::info("Mensagem vazia ignorada no processamento de evento");
+                return;
+            }
 
-                $queueMessage->save();
+            if ($remoteJid) {
+                // Verifica se já existe uma mensagem pendente deste número
+                $existingMessage = MessageQueue::where('sender_number', $remoteJid)
+                    ->where('status', 'pending')
+                    ->first();
 
-                Log::info("Mensagem adicionada à fila", [
-                    'message_id' => $queueMessage->id,
-                    'device' => $instance
-                ]);
+                if ($existingMessage) {
+                    // Atualiza a mensagem existente
+                    $existingMessage->message = $messageContent;
+                    $existingMessage->device_session = $instance;
+                    $existingMessage->updated_at = now();
+                    $existingMessage->save();
+
+                    Log::info("Mensagem atualizada na fila", [
+                        'message_id' => $existingMessage->id,
+                        'device' => $instance
+                    ]);
+                } else {
+                    // Cria uma nova mensagem na fila
+                    $queueMessage = new MessageQueue([
+                        'device_session' => $instance,
+                        'sender_number' => $remoteJid,
+                        'message' => $messageContent,
+                        'message_type' => $messageType,
+                        'is_from_me' => $isFromMe,
+                        'status' => 'pending'
+                    ]);
+
+                    $queueMessage->save();
+
+                    Log::info("Nova mensagem adicionada à fila", [
+                        'message_id' => $queueMessage->id,
+                        'device' => $instance
+                    ]);
+                }
             }
         } catch (\Exception $e) {
             Log::error("Erro ao processar evento de mensagem: " . $e->getMessage());

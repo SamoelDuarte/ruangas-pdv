@@ -251,18 +251,54 @@ class CronController extends Controller
             'mimetype' => 'image/png',
             'caption' => $descricao,
             'media' => $urlImagem,
-            // 'media' => 'https://th.bing.com/th/id/R.106357017f8bd35d565974dde8072dbb?rik=IjfuQUTQ8pkXFg&pid=ImgRaw&r=0',
             'fileName' => 'imagem.png',
         ]);
 
         try {
+            // Log da requisição
+            Log::info("Enviando mensagem para Evolution API", [
+                'numero' => '55' . $numero,
+                'session' => $session,
+                'url' => $url
+            ]);
+
             $request = new \GuzzleHttp\Psr7\Request('POST', $url, $headers, $body);
             $response = $client->sendAsync($request)->wait();
+            
+            $statusCode = $response->getStatusCode();
+            $responseBody = json_decode($response->getBody(), true);
 
-            Log::info("Imagem enviada para 55{$numero}");
-            return json_decode($response->getBody(), true);
+            // Log detalhado da resposta
+            Log::info("Resposta da Evolution API", [
+                'numero' => '55' . $numero,
+                'status' => $statusCode,
+                'response' => $responseBody,
+                'session' => $session
+            ]);
+
+            if ($statusCode === 200) {
+                Log::info("Mensagem enviada com sucesso", [
+                    'numero' => '55' . $numero,
+                    'session' => $session,
+                    'responseBody' => $responseBody
+                ]);
+                return $responseBody;
+            } else {
+                Log::warning("Resposta inesperada da Evolution API", [
+                    'numero' => '55' . $numero,
+                    'status' => $statusCode,
+                    'response' => $responseBody,
+                    'session' => $session
+                ]);
+                return false;
+            }
         } catch (\Exception $e) {
-            Log::error("Erro ao enviar imagem: " . $e->getMessage());
+            Log::error("Erro ao enviar mensagem para Evolution API", [
+                'numero' => '55' . $numero,
+                'session' => $session,
+                'erro' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
             return false;
         }
     }

@@ -54,8 +54,13 @@ class CampaignController extends Controller
                 $campaign->total_not_sent = $campaign->total_to_send - $campaign->total_sent;
                 
                 // Sempre criar objeto imagem (mesmo que vazio)
+                // Se existe caminho, usa o caminho salvo no banco, senão usa padrão
+                $imagemCaminho = $campaign->imagem_caminho 
+                    ? $campaign->imagem_caminho 
+                    : 'assets/images/default-campaign.png';
+                
                 $campaign->imagem = (object) [
-                    'caminho' => $campaign->imagem_caminho ?? '/assets/images/default-campaign.png'
+                    'caminho' => $imagemCaminho
                 ];
                 
                 // Sempre criar objeto contact (mesmo que vazio)
@@ -64,7 +69,7 @@ class CampaignController extends Controller
                 ];
                 
                 // Log para debug
-                \Log::info('Campaign ' . $campaign->id . ' - Imagem caminho: ' . ($campaign->imagem_caminho ?? 'null'));
+                \Log::info('Campaign ' . $campaign->id . ' - Imagem original: ' . ($campaign->imagem_caminho ?? 'null') . ' - Caminho final: ' . $imagemCaminho);
                 
                 return $campaign;
             });

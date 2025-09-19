@@ -59,18 +59,22 @@ class CampaignController extends Controller
                     
                 } catch (\Exception $d1Error) {
                     \Log::error('Campaign index - Teste D1 falhou: ' . $d1Error->getMessage());
+                    \Log::error('Campaign index - Arquivo D1: ' . $d1Error->getFile() . ' Linha: ' . $d1Error->getLine());
+                    \Log::error('Campaign index - Stack trace D1: ' . $d1Error->getTraceAsString());
                     
                     try {
-                        // D2: Verificar se o problema é no withPivot
-                        \Log::info('Campaign index - Teste D2: Testando sem withPivot temporariamente');
+                        // D2: Verificar se o problema é no withPivot - usar query manual
+                        \Log::info('Campaign index - Teste D2: Usando query manual para contornar o problema');
                         
-                        // Vamos modificar temporariamente o relacionamento
+                        // Query manual que funciona independente do relacionamento Eloquent
                         $campaigns = \DB::table('campaigns')
                             ->leftJoin('campaign_contact', 'campaigns.id', '=', 'campaign_contact.campaign_id')
                             ->leftJoin('contact_list', 'campaign_contact.contact_list_id', '=', 'contact_list.id')
                             ->select('campaigns.*', \DB::raw('COUNT(contact_list.id) as total_contacts'))
-                            ->groupBy('campaigns.id')
+                            ->groupBy('campaigns.id', 'campaigns.titulo', 'campaigns.texto', 'campaigns.contact_id', 'campaigns.imagem_id', 'campaigns.status', 'campaigns.created_at', 'campaigns.updated_at')
                             ->get();
+                        
+                        \Log::info('Campaign index - Query manual executada. Total campanhas: ' . $campaigns->count());
                         
                         $campaigns = $campaigns->map(function ($campaign) {
                             $campaign->total_to_send = $campaign->total_contacts ?? 0;
@@ -80,11 +84,13 @@ class CampaignController extends Controller
                         });
                         
                         \Log::info('Campaign index - Teste D2 bem-sucedido com query manual');
+                        \Log::info('Campaign index - Tentando carregar a view...');
                         
                         return view('sistema.campaign.index', compact('campaigns'));
                         
                     } catch (\Exception $d2Error) {
                         \Log::error('Campaign index - Teste D2 também falhou: ' . $d2Error->getMessage());
+                        \Log::error('Campaign index - Stack trace D2: ' . $d2Error->getTraceAsString());
                         throw $d2Error;
                     }
                 }

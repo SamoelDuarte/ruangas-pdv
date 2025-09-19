@@ -26,43 +26,74 @@ class CampaignController extends Controller
             $campaignsBasic = Campaign::all();
             \Log::info('Campaign index - Campanhas básicas encontradas: ' . $campaignsBasic->count());
             
-            // Agora vamos tentar com os relacionamentos - DIVIDINDO EM ETAPAS
+            // Agora vamos tentar com os relacionamentos - TESTANDO MAIS SIMPLES PRIMEIRO
             \Log::info('Campaign index - Tentando carregar relacionamentos...');
             
             try {
-                $campaigns = Campaign::with(['contactList' => function ($query) {
-                    \Log::info('Campaign index - Executando query do relacionamento contactList');
-                    $query->select('contact_list.id', 'contact_list.contact_id')
-                        ->withPivot('send');
-                }])->get();
+                // Teste 1: Relacionamento simples sem select customizado
+                \Log::info('Campaign index - Teste 1: Relacionamento simples');
+                $campaigns = Campaign::with(['contactList'])->get();
+                \Log::info('Campaign index - Teste 1 bem-sucedido. Total: ' . $campaigns->count());
                 
-                \Log::info('Campaign index - Relacionamentos carregados com sucesso. Total: ' . $campaigns->count());
+            } catch (\Exception $test1Error) {
+                \Log::error('Campaign index - Teste 1 falhou: ' . $test1Error->getMessage());
                 
-            } catch (\Exception $relationError) {
-                \Log::error('Campaign index - Erro no relacionamento: ' . $relationError->getMessage());
-                \Log::error('Campaign index - Stack trace relacionamento: ' . $relationError->getTraceAsString());
-                
-                // Fallback: retorna campanhas sem relacionamentos
-                $campaigns = $campaignsBasic->map(function ($campaign) {
-                    $campaign->total_to_send = 0;
-                    $campaign->total_sent = 0;
-                    $campaign->total_not_sent = 0;
-                    return $campaign;
-                });
-                
-                return view('sistema.campaign.index', compact('campaigns'));
+                try {
+                    // Teste 2: Verificar se a tabela pivot existe
+                    \Log::info('Campaign index - Teste 2: Verificando tabela pivot');
+                    $pivotTest = \DB::table('campaign_contact')->limit(1)->get();
+                    \Log::info('Campaign index - Tabela pivot existe e é acessível');
+                    
+                    // Teste 3: Relacionamento sem pivot customizado
+                    \Log::info('Campaign index - Teste 3: Relacionamento sem withPivot');
+                    $campaigns = Campaign::with(['contactList' => function ($query) {
+                        $query->select('contact_list.id', 'contact_list.contact_id');
+                    }])->get();
+                    \Log::info('Campaign index - Teste 3 bem-sucedido');
+                    
+                } catch (\Exception $test2Error) {
+                    \Log::error('Campaign index - Teste 2/3 falhou: ' . $test2Error->getMessage());
+                    
+                    // Fallback final: campanhas sem relacionamentos
+                    \Log::info('Campaign index - Usando fallback sem relacionamentos');
+                    $campaigns = $campaignsBasic->map(function ($campaign) {
+                        $campaign->total_to_send = 0;
+                        $campaign->total_sent = 0;
+                        $campaign->total_not_sent = 0;
+                        return $campaign;
+                    });
+                    
+                    return view('sistema.campaign.index', compact('campaigns'));
+                }
             }
             
-            // Mapear os dados
+            // Mapear os dados de forma mais segura
             \Log::info('Campaign index - Iniciando processamento dos dados...');
             
             $campaigns = $campaigns->map(function ($campaign) {
                 try {
                     \Log::info('Campaign index - Processando campanha ID: ' . $campaign->id);
                     
-                    $campaign->total_to_send = $campaign->contactList ? $campaign->contactList->count() : 0;
-                    $campaign->total_sent = $campaign->contactList ? $campaign->contactList->where('pivot.send', true)->count() : 0;
-                    $campaign->total_not_sent = $campaign->contactList ? $campaign->contactList->where('pivot.send', false)->count() : 0;
+                    // Verificar se contactList existe e é uma collection
+                    if ($campaign->relationLoaded('contactList') && $campaign->contactList) {
+                        $campaign->total_to_send = $campaign->contactList->count();
+                        
+                        // Verificar se o pivot tem a coluna 'send'
+                        $firstContact = $campaign->contactList->first();
+                        if ($firstContact && isset($firstContact->pivot->send)) {
+                            $campaign->total_sent = $campaign->contactList->where('pivot.send', true)->count();
+                            $campaign->total_not_sent = $campaign->contactList->where('pivot.send', false)->count();
+                        } else {
+                            \Log::warning('Campaign index - Pivot send não encontrado para campanha ' . $campaign->id);
+                            $campaign->total_sent = 0;
+                            $campaign->total_not_sent = $campaign->total_to_send;
+                        }
+                    } else {
+                        \Log::warning('Campaign index - ContactList não carregado para campanha ' . $campaign->id);
+                        $campaign->total_to_send = 0;
+                        $campaign->total_sent = 0;
+                        $campaign->total_not_sent = 0;
+                    }
                     
                     \Log::info('Campaign index - Campanha ' . $campaign->id . ' processada. To send: ' . $campaign->total_to_send);
                     

@@ -29,12 +29,11 @@ class CampaignController extends Controller
             $campaigns = \DB::table('campaigns')
                 ->leftJoin('campaign_contact', 'campaigns.id', '=', 'campaign_contact.campaign_id')
                 ->leftJoin('contact_list', 'campaign_contact.contact_list_id', '=', 'contact_list.id')
-                ->leftJoin('imagem_em_massas', 'campaigns.imagem_id', '=', 'imagem_em_massas.id')
+                ->leftJoin('imagem_em_massa', 'campaigns.imagem_id', '=', 'imagem_em_massa.id')
                 ->leftJoin('contacts', 'campaigns.contact_id', '=', 'contacts.id')
                 ->select(
                     'campaigns.*', 
-                    'imagem_em_massas.nome as imagem_nome',
-                    'imagem_em_massas.caminho as imagem_caminho',
+                    'imagem_em_massa.caminho as imagem_caminho',
                     'contacts.name as contact_name',
                     \DB::raw('COUNT(contact_list.id) as total_contacts'),
                     \DB::raw('SUM(CASE WHEN campaign_contact.send = 1 THEN 1 ELSE 0 END) as total_sent')
@@ -42,7 +41,7 @@ class CampaignController extends Controller
                 ->groupBy(
                     'campaigns.id', 'campaigns.titulo', 'campaigns.texto', 'campaigns.contact_id', 
                     'campaigns.imagem_id', 'campaigns.status', 'campaigns.created_at', 'campaigns.updated_at',
-                    'imagem_em_massas.nome', 'imagem_em_massas.caminho', 'contacts.name'
+                    'imagem_em_massa.caminho', 'contacts.name'
                 )
                 ->get();
             
@@ -56,7 +55,6 @@ class CampaignController extends Controller
                 
                 // Sempre criar objeto imagem (mesmo que vazio)
                 $campaign->imagem = (object) [
-                    'nome' => $campaign->imagem_nome ?? '',
                     'caminho' => $campaign->imagem_caminho ?? '/assets/images/default-campaign.png'
                 ];
                 
@@ -64,6 +62,9 @@ class CampaignController extends Controller
                 $campaign->contact = (object) [
                     'name' => $campaign->contact_name ?? 'Sem contato'
                 ];
+                
+                // Log para debug
+                \Log::info('Campaign ' . $campaign->id . ' - Imagem caminho: ' . ($campaign->imagem_caminho ?? 'null'));
                 
                 return $campaign;
             });

@@ -25,24 +25,54 @@ class CampaignController extends Controller
             // Versão simplificada que funciona sem relacionamentos problemáticos
             \Log::info('Campaign index - Usando versão simplificada sem relacionamentos');
             
-            // Query manual que funciona independente do relacionamento Eloquent
+            // Query manual que inclui os dados necessários para a view
             $campaigns = \DB::table('campaigns')
                 ->leftJoin('campaign_contact', 'campaigns.id', '=', 'campaign_contact.campaign_id')
                 ->leftJoin('contact_list', 'campaign_contact.contact_list_id', '=', 'contact_list.id')
+                ->leftJoin('imagem_em_massas', 'campaigns.imagem_id', '=', 'imagem_em_massas.id')
+                ->leftJoin('contacts', 'campaigns.contact_id', '=', 'contacts.id')
                 ->select(
                     'campaigns.*', 
+                    'imagem_em_massas.nome as imagem_nome',
+                    'imagem_em_massas.caminho as imagem_caminho',
+                    'contacts.name as contact_name',
                     \DB::raw('COUNT(contact_list.id) as total_contacts'),
                     \DB::raw('SUM(CASE WHEN campaign_contact.send = 1 THEN 1 ELSE 0 END) as total_sent')
                 )
-                ->groupBy('campaigns.id', 'campaigns.titulo', 'campaigns.texto', 'campaigns.contact_id', 'campaigns.imagem_id', 'campaigns.status', 'campaigns.created_at', 'campaigns.updated_at')
+                ->groupBy(
+                    'campaigns.id', 'campaigns.titulo', 'campaigns.texto', 'campaigns.contact_id', 
+                    'campaigns.imagem_id', 'campaigns.status', 'campaigns.created_at', 'campaigns.updated_at',
+                    'imagem_em_massas.nome', 'imagem_em_massas.caminho', 'contacts.name'
+                )
                 ->get();
             
             \Log::info('Campaign index - Query manual executada. Total campanhas: ' . $campaigns->count());
             
             $campaigns = $campaigns->map(function ($campaign) {
+                // Adicionar propriedades que a view espera
                 $campaign->total_to_send = $campaign->total_contacts ?? 0;
                 $campaign->total_sent = $campaign->total_sent ?? 0;
                 $campaign->total_not_sent = $campaign->total_to_send - $campaign->total_sent;
+                
+                // Criar objeto imagem se existir
+                if ($campaign->imagem_nome) {
+                    $campaign->imagem = (object) [
+                        'nome' => $campaign->imagem_nome,
+                        'caminho' => $campaign->imagem_caminho
+                    ];
+                } else {
+                    $campaign->imagem = null;
+                }
+                
+                // Criar objeto contact se existir
+                if ($campaign->contact_name) {
+                    $campaign->contact = (object) [
+                        'name' => $campaign->contact_name
+                    ];
+                } else {
+                    $campaign->contact = null;
+                }
+                
                 return $campaign;
             });
             
@@ -62,6 +92,8 @@ class CampaignController extends Controller
                     $campaign->total_to_send = 0;
                     $campaign->total_sent = 0;
                     $campaign->total_not_sent = 0;
+                    $campaign->imagem = null;
+                    $campaign->contact = null;
                     return $campaign;
                 });
                 

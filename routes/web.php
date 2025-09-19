@@ -219,5 +219,52 @@ Route::middleware('auth')->group(function () {
 
 Route::middleware(['cors'])->post('/obterparcelamento', [CronController::class, 'obterParcelamento']);
 
+// Rota de debug temporária - REMOVER EM PRODUÇÃO
+Route::get('/debug-campaigns', function() {
+    try {
+        // Teste 1: Verificar se a model Campaign funciona
+        $campaigns = \App\Models\Campaign::all();
+        \Log::info('Debug - Campanhas encontradas: ' . $campaigns->count());
+        
+        // Teste 2: Verificar relacionamentos
+        $campaignsWithRelations = \App\Models\Campaign::with('contactList')->get();
+        \Log::info('Debug - Campanhas com relacionamentos: ' . $campaignsWithRelations->count());
+        
+        // Teste 3: Verificar se as tabelas existem
+        $tablesExist = [
+            'campaigns' => \Schema::hasTable('campaigns'),
+            'campaign_contact' => \Schema::hasTable('campaign_contact'),
+            'contact_list' => \Schema::hasTable('contact_list')
+        ];
+        
+        return response()->json([
+            'status' => 'success',
+            'campaigns_count' => $campaigns->count(),
+            'campaigns_with_relations_count' => $campaignsWithRelations->count(),
+            'tables_exist' => $tablesExist,
+            'campaigns_sample' => $campaigns->take(3)->toArray()
+        ]);
+    } catch (\Exception $e) {
+        \Log::error('Debug campaigns error: ' . $e->getMessage());
+        return response()->json([
+            'status' => 'error',
+            'message' => $e->getMessage(),
+            'file' => $e->getFile(),
+            'line' => $e->getLine(),
+            'trace' => $e->getTraceAsString()
+        ], 500);
+    }
+});
+
+// Route::prefix('/atendimento')->middleware(['auth'])->name('atendimento.')->group(function () {
+//     Route::get('/', [AtendimentoController::class, 'index'])->name('index');
+//     Route::get('/listar', [AtendimentoController::class, 'listar'])->name('listar');
+//     Route::get('/novo', [AtendimentoController::class, 'create'])->name('create');
+//     Route::post('/criar', [AtendimentoController::class, 'store'])->name('store');
+//     Route::get('/{atendimento}', [AtendimentoController::class, 'show'])->name('show');
+//     Route::put('/{atendimento}', [AtendimentoController::class, 'update'])->name('update');
+//     Route::post('/{atendimento}/mensagem', [AtendimentoController::class, 'enviarMensagem'])->name('mensagem');
+//     Route::post('/{atendimento}/transferir', [AtendimentoController::class, 'transferir'])->name('transferir');
+// });
 
 require __DIR__ . '/auth.php';

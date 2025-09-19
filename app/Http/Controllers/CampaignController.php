@@ -19,17 +19,65 @@ class CampaignController extends Controller
 {
     public function index()
     {
-        $campaigns = Campaign::with(['contactList' => function ($query) {
-            $query->select('contact_list.id', 'contact_list.contact_id')
-                ->withPivot('send');
-        }])->get()->map(function ($campaign) {
-            $campaign->total_to_send = $campaign->contactList->count();
-            $campaign->total_sent = $campaign->contactList->where('pivot.send', true)->count();
-            $campaign->total_not_sent = $campaign->contactList->where('pivot.send', false)->count();
-            return $campaign;
-        });
+        try {
+            \Log::info('Campaign index - Iniciando busca de campanhas');
+            
+            // Primeiro, vamos tentar buscar campanhas sem relacionamentos para verificar se a tabela existe
+            $campaignsBasic = Campaign::all();
+            \Log::info('Campaign index - Campanhas básicas encontradas: ' . $campaignsBasic->count());
+            
+            // Agora vamos tentar com os relacionamentos
+            $campaigns = Campaign::with(['contactList' => function ($query) {
+                $query->select('contact_list.id', 'contact_list.contact_id')
+                    ->withPivot('send');
+            }])->get();
+            
+            \Log::info('Campaign index - Campanhas com relacionamentos: ' . $campaigns->count());
+            
+            // Mapear os dados
+            $campaigns = $campaigns->map(function ($campaign) {
+                try {
+                    $campaign->total_to_send = $campaign->contactList ? $campaign->contactList->count() : 0;
+                    $campaign->total_sent = $campaign->contactList ? $campaign->contactList->where('pivot.send', true)->count() : 0;
+                    $campaign->total_not_sent = $campaign->contactList ? $campaign->contactList->where('pivot.send', false)->count() : 0;
+                    return $campaign;
+                } catch (\Exception $e) {
+                    \Log::error('Erro ao processar campanha ID ' . $campaign->id . ': ' . $e->getMessage());
+                    $campaign->total_to_send = 0;
+                    $campaign->total_sent = 0;
+                    $campaign->total_not_sent = 0;
+                    return $campaign;
+                }
+            });
 
-        return view('sistema.campaign.index', compact('campaigns'));
+            \Log::info('Campaign index - Campanhas processadas com sucesso');
+            
+            return view('sistema.campaign.index', compact('campaigns'));
+            
+        } catch (\Illuminate\Database\QueryException $e) {
+            \Log::error('Erro de banco de dados no Campaign index: ' . $e->getMessage());
+            
+            // Se houver erro de banco, retorna campanhas básicas sem relacionamentos
+            try {
+                $campaigns = Campaign::all()->map(function ($campaign) {
+                    $campaign->total_to_send = 0;
+                    $campaign->total_sent = 0;
+                    $campaign->total_not_sent = 0;
+                    return $campaign;
+                });
+                
+                return view('sistema.campaign.index', compact('campaigns'));
+            } catch (\Exception $fallbackError) {
+                \Log::error('Erro no fallback: ' . $fallbackError->getMessage());
+                return back()->withErrors(['error' => 'Erro ao carregar campanhas. Verifique as tabelas do banco de dados.']);
+            }
+            
+        } catch (\Exception $e) {
+            \Log::error('Erro geral no Campaign index: ' . $e->getMessage());
+            \Log::error('Stack trace: ' . $e->getTraceAsString());
+            
+            return back()->withErrors(['error' => 'Erro ao carregar campanhas: ' . $e->getMessage()]);
+        }
     }
 
     public function deleteCampanha($id)

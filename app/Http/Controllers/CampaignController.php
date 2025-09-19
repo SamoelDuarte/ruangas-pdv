@@ -26,70 +26,62 @@ class CampaignController extends Controller
             $campaignsBasic = Campaign::all();
             \Log::info('Campaign index - Campanhas básicas encontradas: ' . $campaignsBasic->count());
             
-            // Agora vamos tentar com os relacionamentos - TESTANDO MAIS SIMPLES PRIMEIRO
+            // Agora vamos testar cada componente separadamente
             \Log::info('Campaign index - Tentando carregar relacionamentos...');
             
             try {
-                // Teste 1: Relacionamento simples sem select customizado
-                \Log::info('Campaign index - Teste 1: Relacionamento simples');
-                $campaigns = Campaign::with(['contactList'])->get();
-                \Log::info('Campaign index - Teste 1 bem-sucedido. Total: ' . $campaigns->count());
+                // Teste A: Verificar se ContactList model funciona
+                \Log::info('Campaign index - Teste A: Verificando modelo ContactList');
+                $contactListTest = \App\Models\ContactList::limit(1)->get();
+                \Log::info('Campaign index - Teste A bem-sucedido. ContactList acessível');
                 
-            } catch (\Exception $test1Error) {
-                \Log::error('Campaign index - Teste 1 falhou: ' . $test1Error->getMessage());
+                // Teste B: Verificar tabela pivot campaign_contact
+                \Log::info('Campaign index - Teste B: Verificando tabela pivot campaign_contact');
+                $pivotData = \DB::table('campaign_contact')->limit(1)->get();
+                \Log::info('Campaign index - Teste B bem-sucedido. Tabela pivot acessível');
                 
-                try {
-                    // Teste 2: Verificar se a tabela pivot existe
-                    \Log::info('Campaign index - Teste 2: Verificando tabela pivot');
-                    $pivotTest = \DB::table('campaign_contact')->limit(1)->get();
-                    \Log::info('Campaign index - Tabela pivot existe e é acessível');
-                    
-                    // Teste 3: Relacionamento sem pivot customizado
-                    \Log::info('Campaign index - Teste 3: Relacionamento sem withPivot');
-                    $campaigns = Campaign::with(['contactList' => function ($query) {
-                        $query->select('contact_list.id', 'contact_list.contact_id');
-                    }])->get();
-                    \Log::info('Campaign index - Teste 3 bem-sucedido');
-                    
-                } catch (\Exception $test2Error) {
-                    \Log::error('Campaign index - Teste 2/3 falhou: ' . $test2Error->getMessage());
-                    
-                    // Fallback final: campanhas sem relacionamentos
-                    \Log::info('Campaign index - Usando fallback sem relacionamentos');
-                    $campaigns = $campaignsBasic->map(function ($campaign) {
-                        $campaign->total_to_send = 0;
-                        $campaign->total_sent = 0;
-                        $campaign->total_not_sent = 0;
-                        return $campaign;
-                    });
-                    
-                    return view('sistema.campaign.index', compact('campaigns'));
+                // Teste C: Relacionamento básico SEM eager loading
+                \Log::info('Campaign index - Teste C: Testando relacionamento sem eager loading');
+                $firstCampaign = Campaign::first();
+                if ($firstCampaign) {
+                    $contactListRelation = $firstCampaign->contactList()->limit(1)->get();
+                    \Log::info('Campaign index - Teste C bem-sucedido. Relacionamento funciona');
                 }
+                
+                // Teste D: Eager loading simples
+                \Log::info('Campaign index - Teste D: Eager loading simples');
+                $campaigns = Campaign::with(['contactList'])->get();
+                \Log::info('Campaign index - Teste D bem-sucedido. Total: ' . $campaigns->count());
+                
+            } catch (\Exception $testError) {
+                \Log::error('Campaign index - Erro nos testes: ' . $testError->getMessage());
+                \Log::error('Campaign index - Arquivo: ' . $testError->getFile() . ' Linha: ' . $testError->getLine());
+                \Log::error('Campaign index - Stack trace: ' . $testError->getTraceAsString());
+                
+                // Fallback: campanhas sem relacionamentos
+                \Log::info('Campaign index - Usando fallback sem relacionamentos');
+                $campaigns = $campaignsBasic->map(function ($campaign) {
+                    $campaign->total_to_send = 0;
+                    $campaign->total_sent = 0;
+                    $campaign->total_not_sent = 0;
+                    return $campaign;
+                });
+                
+                return view('sistema.campaign.index', compact('campaigns'));
             }
             
-            // Mapear os dados de forma mais segura
-            \Log::info('Campaign index - Iniciando processamento dos dados...');
+            // Se chegou até aqui, o relacionamento funciona
+            \Log::info('Campaign index - Todos os testes passaram. Processando dados...');
             
             $campaigns = $campaigns->map(function ($campaign) {
                 try {
                     \Log::info('Campaign index - Processando campanha ID: ' . $campaign->id);
                     
-                    // Verificar se contactList existe e é uma collection
                     if ($campaign->relationLoaded('contactList') && $campaign->contactList) {
                         $campaign->total_to_send = $campaign->contactList->count();
-                        
-                        // Verificar se o pivot tem a coluna 'send'
-                        $firstContact = $campaign->contactList->first();
-                        if ($firstContact && isset($firstContact->pivot->send)) {
-                            $campaign->total_sent = $campaign->contactList->where('pivot.send', true)->count();
-                            $campaign->total_not_sent = $campaign->contactList->where('pivot.send', false)->count();
-                        } else {
-                            \Log::warning('Campaign index - Pivot send não encontrado para campanha ' . $campaign->id);
-                            $campaign->total_sent = 0;
-                            $campaign->total_not_sent = $campaign->total_to_send;
-                        }
+                        $campaign->total_sent = 0;
+                        $campaign->total_not_sent = $campaign->total_to_send;
                     } else {
-                        \Log::warning('Campaign index - ContactList não carregado para campanha ' . $campaign->id);
                         $campaign->total_to_send = 0;
                         $campaign->total_sent = 0;
                         $campaign->total_not_sent = 0;

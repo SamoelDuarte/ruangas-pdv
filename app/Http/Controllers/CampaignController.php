@@ -26,20 +26,46 @@ class CampaignController extends Controller
             $campaignsBasic = Campaign::all();
             \Log::info('Campaign index - Campanhas básicas encontradas: ' . $campaignsBasic->count());
             
-            // Agora vamos tentar com os relacionamentos
-            $campaigns = Campaign::with(['contactList' => function ($query) {
-                $query->select('contact_list.id', 'contact_list.contact_id')
-                    ->withPivot('send');
-            }])->get();
+            // Agora vamos tentar com os relacionamentos - DIVIDINDO EM ETAPAS
+            \Log::info('Campaign index - Tentando carregar relacionamentos...');
             
-            \Log::info('Campaign index - Campanhas com relacionamentos: ' . $campaigns->count());
+            try {
+                $campaigns = Campaign::with(['contactList' => function ($query) {
+                    \Log::info('Campaign index - Executando query do relacionamento contactList');
+                    $query->select('contact_list.id', 'contact_list.contact_id')
+                        ->withPivot('send');
+                }])->get();
+                
+                \Log::info('Campaign index - Relacionamentos carregados com sucesso. Total: ' . $campaigns->count());
+                
+            } catch (\Exception $relationError) {
+                \Log::error('Campaign index - Erro no relacionamento: ' . $relationError->getMessage());
+                \Log::error('Campaign index - Stack trace relacionamento: ' . $relationError->getTraceAsString());
+                
+                // Fallback: retorna campanhas sem relacionamentos
+                $campaigns = $campaignsBasic->map(function ($campaign) {
+                    $campaign->total_to_send = 0;
+                    $campaign->total_sent = 0;
+                    $campaign->total_not_sent = 0;
+                    return $campaign;
+                });
+                
+                return view('sistema.campaign.index', compact('campaigns'));
+            }
             
             // Mapear os dados
+            \Log::info('Campaign index - Iniciando processamento dos dados...');
+            
             $campaigns = $campaigns->map(function ($campaign) {
                 try {
+                    \Log::info('Campaign index - Processando campanha ID: ' . $campaign->id);
+                    
                     $campaign->total_to_send = $campaign->contactList ? $campaign->contactList->count() : 0;
                     $campaign->total_sent = $campaign->contactList ? $campaign->contactList->where('pivot.send', true)->count() : 0;
                     $campaign->total_not_sent = $campaign->contactList ? $campaign->contactList->where('pivot.send', false)->count() : 0;
+                    
+                    \Log::info('Campaign index - Campanha ' . $campaign->id . ' processada. To send: ' . $campaign->total_to_send);
+                    
                     return $campaign;
                 } catch (\Exception $e) {
                     \Log::error('Erro ao processar campanha ID ' . $campaign->id . ': ' . $e->getMessage());
@@ -50,12 +76,15 @@ class CampaignController extends Controller
                 }
             });
 
-            \Log::info('Campaign index - Campanhas processadas com sucesso');
+            \Log::info('Campaign index - Todas as campanhas processadas com sucesso');
+            \Log::info('Campaign index - Tentando carregar a view...');
             
             return view('sistema.campaign.index', compact('campaigns'));
             
         } catch (\Illuminate\Database\QueryException $e) {
             \Log::error('Erro de banco de dados no Campaign index: ' . $e->getMessage());
+            \Log::error('SQL: ' . $e->getSql());
+            \Log::error('Bindings: ' . json_encode($e->getBindings()));
             
             // Se houver erro de banco, retorna campanhas básicas sem relacionamentos
             try {
@@ -74,6 +103,7 @@ class CampaignController extends Controller
             
         } catch (\Exception $e) {
             \Log::error('Erro geral no Campaign index: ' . $e->getMessage());
+            \Log::error('Arquivo: ' . $e->getFile() . ' Linha: ' . $e->getLine());
             \Log::error('Stack trace: ' . $e->getTraceAsString());
             
             return back()->withErrors(['error' => 'Erro ao carregar campanhas: ' . $e->getMessage()]);

@@ -50,8 +50,44 @@ class CampaignController extends Controller
                 
                 // Teste D: Eager loading simples
                 \Log::info('Campaign index - Teste D: Eager loading simples');
-                $campaigns = Campaign::with(['contactList'])->get();
-                \Log::info('Campaign index - Teste D bem-sucedido. Total: ' . $campaigns->count());
+                
+                try {
+                    // D1: Eager loading sem array
+                    \Log::info('Campaign index - Teste D1: Eager loading string simples');
+                    $campaigns = Campaign::with('contactList')->get();
+                    \Log::info('Campaign index - Teste D1 bem-sucedido. Total: ' . $campaigns->count());
+                    
+                } catch (\Exception $d1Error) {
+                    \Log::error('Campaign index - Teste D1 falhou: ' . $d1Error->getMessage());
+                    
+                    try {
+                        // D2: Verificar se o problema é no withPivot
+                        \Log::info('Campaign index - Teste D2: Testando sem withPivot temporariamente');
+                        
+                        // Vamos modificar temporariamente o relacionamento
+                        $campaigns = \DB::table('campaigns')
+                            ->leftJoin('campaign_contact', 'campaigns.id', '=', 'campaign_contact.campaign_id')
+                            ->leftJoin('contact_list', 'campaign_contact.contact_list_id', '=', 'contact_list.id')
+                            ->select('campaigns.*', \DB::raw('COUNT(contact_list.id) as total_contacts'))
+                            ->groupBy('campaigns.id')
+                            ->get();
+                        
+                        $campaigns = $campaigns->map(function ($campaign) {
+                            $campaign->total_to_send = $campaign->total_contacts ?? 0;
+                            $campaign->total_sent = 0;
+                            $campaign->total_not_sent = $campaign->total_to_send;
+                            return $campaign;
+                        });
+                        
+                        \Log::info('Campaign index - Teste D2 bem-sucedido com query manual');
+                        
+                        return view('sistema.campaign.index', compact('campaigns'));
+                        
+                    } catch (\Exception $d2Error) {
+                        \Log::error('Campaign index - Teste D2 também falhou: ' . $d2Error->getMessage());
+                        throw $d2Error;
+                    }
+                }
                 
             } catch (\Exception $testError) {
                 \Log::error('Campaign index - Erro nos testes: ' . $testError->getMessage());

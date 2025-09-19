@@ -54,24 +54,16 @@ class CampaignController extends Controller
                 $campaign->total_sent = $campaign->total_sent ?? 0;
                 $campaign->total_not_sent = $campaign->total_to_send - $campaign->total_sent;
                 
-                // Criar objeto imagem se existir
-                if ($campaign->imagem_nome) {
-                    $campaign->imagem = (object) [
-                        'nome' => $campaign->imagem_nome,
-                        'caminho' => $campaign->imagem_caminho
-                    ];
-                } else {
-                    $campaign->imagem = null;
-                }
+                // Sempre criar objeto imagem (mesmo que vazio)
+                $campaign->imagem = (object) [
+                    'nome' => $campaign->imagem_nome ?? '',
+                    'caminho' => $campaign->imagem_caminho ?? '/assets/images/default-campaign.png'
+                ];
                 
-                // Criar objeto contact se existir
-                if ($campaign->contact_name) {
-                    $campaign->contact = (object) [
-                        'name' => $campaign->contact_name
-                    ];
-                } else {
-                    $campaign->contact = null;
-                }
+                // Sempre criar objeto contact (mesmo que vazio)
+                $campaign->contact = (object) [
+                    'name' => $campaign->contact_name ?? 'Sem contato'
+                ];
                 
                 return $campaign;
             });
@@ -92,8 +84,13 @@ class CampaignController extends Controller
                     $campaign->total_to_send = 0;
                     $campaign->total_sent = 0;
                     $campaign->total_not_sent = 0;
-                    $campaign->imagem = null;
-                    $campaign->contact = null;
+                    $campaign->imagem = (object) [
+                        'nome' => '',
+                        'caminho' => '/assets/images/default-campaign.png'
+                    ];
+                    $campaign->contact = (object) [
+                        'name' => 'Sem contato'
+                    ];
                     return $campaign;
                 });
                 

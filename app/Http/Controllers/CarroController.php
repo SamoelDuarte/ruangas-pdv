@@ -86,4 +86,32 @@ class CarroController extends Controller
         $carro->delete();
         return redirect()->route('carros.index')->with('success', 'Carro deletado com sucesso!');
     }
+
+    /**
+     * Buscar carros de forma assíncrona
+     */
+    public function buscar(Request $request)
+    {
+        $termo = $request->query('q', '');
+        
+        $carros = Carro::where('nome', 'like', '%' . $termo . '%')
+                      ->latest()
+                      ->get();
+        
+        return response()->json([
+            'carros' => $carros
+        ]);
+    }
+
+    /**
+     * Listar todos os carros
+     */
+    public function listar()
+    {
+        $carros = Carro::latest()->get();
+        
+        return response()->json([
+            'carros' => $carros
+        ]);
+    }
 }

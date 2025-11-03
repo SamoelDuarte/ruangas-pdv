@@ -8,9 +8,14 @@
             <div class="card shadow">
                 <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
                     <h4 class="mb-0"><i class="fas fa-car me-2"></i>Carros Cadastrados</h4>
-                    <button type="button" class="btn btn-light" data-bs-toggle="modal" data-bs-target="#carroModal" onclick="limparModal()">
-                        <i class="fas fa-plus"></i> Novo Carro
-                    </button>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-light" id="btnConfigurarKm" onclick="abrirModalConfiguracaoKm()">
+                            <i class="fas fa-cog"></i> <span id="textoKm">Configurar KM</span>
+                        </button>
+                        <button type="button" class="btn btn-light" data-bs-toggle="modal" data-bs-target="#carroModal" onclick="limparModal()">
+                            <i class="fas fa-plus"></i> Novo Carro
+                        </button>
+                    </div>
                 </div>
                 <div class="card-body">
                     @if(session('success'))
@@ -20,8 +25,23 @@
                         </div>
                     @endif
 
+                    <!-- Campo de Busca Assíncrona -->
+                    <div class="mb-3">
+                        <div class="input-group">
+                            <span class="input-group-text bg-light border">
+                                <i class="fas fa-search text-muted"></i>
+                            </span>
+                            <input type="text" class="form-control" id="buscaCarro" 
+                                   placeholder="Pesquisar carro por nome..." autocomplete="off">
+                            <button type="button" class="btn btn-outline-secondary" id="btnLimparBusca" 
+                                    style="display: none;" onclick="limparBusca()" title="Limpar busca">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+
                     @if($carros->count() > 0)
-                        <div class="list-group">
+                        <div class="list-group" id="listaCarros">
                             @foreach($carros as $carro)
                             <div class="list-group-item list-group-item-action carro-item" onclick="selecionarCarro({{ $carro->id }}, '{{ $carro->nome }}')">
                                 <div class="d-flex w-100 justify-content-between">
@@ -215,11 +235,68 @@
     @method('DELETE')
 </form>
 
+<!-- Modal para registrar troca de óleo -->
+<div class="modal fade" id="trocaOleoModal" tabindex="-1" aria-labelledby="trocaOleoModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title" id="trocaOleoModalLabel">
+                    <i class="fas fa-oil-can me-2"></i>Registrar Troca de Óleo
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="formTrocaOleo">
+                @csrf
+                <input type="hidden" id="carroIdTroca" name="carro_id">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="dataTroca" class="form-label">
+                            <i class="fas fa-calendar me-2"></i>Data da Troca *
+                        </label>
+                        <input type="date" class="form-control" id="dataTroca" name="data_troca" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="observacoesTroca" class="form-label">
+                            <i class="fas fa-sticky-note me-2"></i>Observações (opcional)
+                        </label>
+                        <textarea class="form-control" id="observacoesTroca" name="observacoes" rows="3" placeholder="Ex: Óleo sintético, filtro trocado..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-1"></i>Cancelar
+                    </button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-save me-1"></i>Confirmar Troca
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 @endsection
 
 @section('scripts')
 <script>
 let carroSelecionadoId = null;
+
+// Carregar KM global ao inicializar
+document.addEventListener('DOMContentLoaded', function() {
+    fetch(`/limite-km/global`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.limiteKm) {
+                document.getElementById('textoKm').textContent = `Configurar KM ${data.limiteKm} km`;
+            }
+        })
+        .catch(error => {
+            console.log('Nenhum KM configurado ainda');
+        });
+    
+    // Carregar todos os carros ao inicializar
+    carregarTodosCarros();
+});
 
 function limparModal() {
     document.getElementById('carroModalLabel').innerHTML = '<i class="fas fa-car me-2"></i>Novo Carro';
@@ -258,6 +335,7 @@ function confirmarExclusao(id, nome) {
 
 function selecionarCarro(carroId, nomeCarr) {
     carroSelecionadoId = carroId;
+    carroSelecionadoParaKm = carroId;
     
     // Remover classe ativa de todos os itens
     document.querySelectorAll('.carro-item').forEach(item => {
@@ -284,6 +362,9 @@ function selecionarCarro(carroId, nomeCarr) {
     
     // Carregar abastecimentos
     carregarAbastecimentos(carroId);
+    
+    // Carregar infos do carro para mostrar no modal de KM
+    carregarInfosCarroSelecionado();
 }
 
 function carregarAbastecimentos(carroId) {
@@ -522,6 +603,54 @@ document.getElementById('abastecimentoForm').addEventListener('submit', function
     });
 });
 
+// Enviar formulário de troca de óleo
+document.getElementById('formTrocaOleo').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const carroId = document.getElementById('carroIdTroca').value;
+    const kmNaTroca = document.getElementById('kmNaTroca').value;
+    const dataTroca = document.getElementById('dataTroca').value;
+    const observacoes = document.getElementById('observacoesTroca').value;
+    
+    if (!dataTroca) {
+        alert('Por favor, selecione a data da troca!');
+        return;
+    }
+    
+    fetch('/troca-oleo', {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            carro_id: carroId,
+            data_troca: dataTroca,
+            observacoes: observacoes
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Fechar modal
+            bootstrap.Modal.getInstance(document.getElementById('trocaOleoModal')).hide();
+            
+            // Limpar formulário
+            document.getElementById('formTrocaOleo').reset();
+            
+            // Recarregar lista de carros
+            carregarTodosCarros();
+            
+            // Mostrar mensagem de sucesso
+            showToast('success', 'Troca de óleo registrada com sucesso!');
+        }
+    })
+    .catch(error => {
+        showToast('error', 'Erro ao registrar troca de óleo');
+        console.error('Error:', error);
+    });
+});
+
 // Validação do formulário de carro
 document.getElementById('carroForm').addEventListener('submit', function(e) {
     const nome = document.getElementById('nome').value.trim();
@@ -574,6 +703,387 @@ function deletarAbastecimento(abastecimentoId) {
         console.error('Error:', error);
     });
 }
+
+// Busca assíncrona de carros
+let timeoutBusca;
+document.getElementById('buscaCarro').addEventListener('input', function(e) {
+    clearTimeout(timeoutBusca);
+    const termo = e.target.value.trim();
+    
+    // Mostrar/ocultar botão limpar
+    document.getElementById('btnLimparBusca').style.display = termo ? 'block' : 'none';
+    
+    if (termo.length === 0) {
+        carregarTodosCarros();
+        return;
+    }
+    
+    if (termo.length < 2) {
+        return;
+    }
+    
+    // Adicionar delay de 300ms para não fazer muitas requisições
+    timeoutBusca = setTimeout(() => {
+        buscarCarros(termo);
+    }, 300);
+});
+
+function limparBusca() {
+    document.getElementById('buscaCarro').value = '';
+    document.getElementById('btnLimparBusca').style.display = 'none';
+    carregarTodosCarros();
+}
+
+function buscarCarros(termo) {
+    const lista = document.getElementById('listaCarros');
+    lista.innerHTML = '<div class="text-center py-3"><i class="fas fa-spinner fa-spin"></i> Buscando...</div>';
+    
+    fetch(`/carros/buscar?q=${encodeURIComponent(termo)}`)
+        .then(response => response.json())
+        .then(data => {
+            renderizarListaCarros(data.carros);
+        })
+        .catch(error => {
+            lista.innerHTML = '<div class="alert alert-danger">Erro na busca</div>';
+            console.error('Error:', error);
+        });
+}
+
+function carregarTodosCarros() {
+    const lista = document.getElementById('listaCarros');
+    lista.innerHTML = '<div class="text-center py-3"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>';
+    
+    fetch('/carros/listar')
+        .then(response => response.json())
+        .then(data => {
+            renderizarListaCarros(data.carros);
+        })
+        .catch(error => {
+            lista.innerHTML = '<div class="alert alert-danger">Erro ao carregar carros</div>';
+            console.error('Error:', error);
+        });
+}
+
+function renderizarListaCarros(carros) {
+    const lista = document.getElementById('listaCarros');
+    
+    if (carros.length === 0) {
+        lista.innerHTML = `
+            <div class="text-center py-5">
+                <i class="fas fa-car fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">Nenhum carro encontrado</h5>
+                <p class="text-muted">Clique em "Novo Carro" para adicionar.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = '';
+    carros.forEach(carro => {
+        const dataFormatada = new Date(carro.created_at).toLocaleDateString('pt-BR');
+        html += `
+            <div class="list-group-item list-group-item-action carro-item" id="carro-${carro.id}" onclick="selecionarCarro(${carro.id}, '${carro.nome}')">
+                <div class="d-flex w-100 justify-content-between align-items-start">
+                    <div class="flex-grow-1">
+                        <h6 class="mb-1"><i class="fas fa-car me-2"></i>${carro.nome}</h6>
+                        <small class="text-muted">Cadastrado: ${dataFormatada}</small>
+                        <div class="alerta-troca-${carro.id}" style="margin-top: 8px;"></div>
+                    </div>
+                    <small class="text-muted">Status: <span class="status-${carro.id}">-</span></small>
+                </div>
+                <div class="btn-group mt-2" role="group">
+                    <button type="button" class="btn btn-sm btn-warning" 
+                            data-bs-toggle="modal" data-bs-target="#carroModal"
+                            onclick="event.stopPropagation(); editarCarro(${carro.id}, '${carro.nome}')"
+                            title="Editar">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button type="button" class="btn btn-sm btn-danger" 
+                            onclick="event.stopPropagation(); confirmarExclusao(${carro.id}, '${carro.nome}')"
+                            title="Deletar">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+    });
+    
+    lista.innerHTML = html;
+    
+    // Após renderizar, carregar status de cada carro
+    carros.forEach(carro => {
+        verificarStatusCarroNaLista(carro.id);
+    });
+}
+
+function verificarStatusCarroNaLista(carroId) {
+    // Obter limite KM global
+    fetch(`/limite-km/global`)
+        .then(response => response.json())
+        .then(globalData => {
+            const kmLimite = globalData.limiteKm;
+            
+            if (!kmLimite) {
+                console.log(`Carro ${carroId}: Limite de KM não configurado`);
+                return;
+            }
+            
+            // Obter dados do carro (última troca e km atual)
+            fetch(`/limite-km/${carroId}`)
+                .then(response => response.json())
+                .then(data => {
+                    console.log(`Carro ${carroId}:`, data); // DEBUG
+                    
+                    const kmAtual = parseFloat(data.kmAtual) || 0;
+                    const ultimaTroca = data.ultimaTroca;
+                    
+                    let alerta = '';
+                    let status = '✓ OK';
+                    let classeCard = '';
+                    
+                    if (!ultimaTroca) {
+                        // Nunca teve troca
+                        if (kmAtual > kmLimite) {
+                            // Passou do limite
+                            const kmExcedente = kmAtual - kmLimite;
+                            alerta = `<div class="alert alert-danger alert-sm mb-0" role="alert">
+                                <i class="fas fa-exclamation-circle me-1"></i>
+                                <strong>PRIMEIRA TROCA PENDENTE!</strong>
+                                <br>Passou ${kmExcedente.toFixed(0)} km do limite (${kmAtual.toFixed(0)} km rodados)
+                            </div>
+                            <button class="btn btn-sm btn-success mt-2 w-100" onclick="event.stopPropagation(); abrirModalTrocaOleo(${carroId}, ${data.kmAtualOdometro})">
+                                <i class="fas fa-oil-can me-1"></i> Trocar Óleo Agora
+                            </button>`;
+                            status = '🔴 TROCA PENDENTE';
+                            classeCard = 'border-danger';
+                        } else if (kmAtual > kmLimite - 200 && kmAtual > 0) {
+                            // Proximidade do limite
+                            const kmRestantes = kmLimite - kmAtual;
+                            alerta = `<div class="alert alert-warning alert-sm mb-0" role="alert">
+                                <i class="fas fa-info-circle me-1"></i>
+                                <small>Faltam ${kmRestantes.toFixed(0)} km para primeira troca</small>
+                            </div>`;
+                            status = '⚠️ PROXIMIDADE';
+                            classeCard = 'border-warning';
+                        }
+                    } else {
+                        // Tem histórico de troca
+                        const kmDesdeUltimaTroca = kmAtual; // kmAtual JÁ é calculado desde a troca!
+                        const kmRestantes = kmLimite - kmDesdeUltimaTroca;
+                        
+                        console.log(`KM Atual: ${kmAtual}, KM Desde Troca: ${kmDesdeUltimaTroca}, Limite: ${kmLimite}, Restantes: ${kmRestantes}`);
+                        
+                        if (kmDesdeUltimaTroca >= kmLimite) {
+                            const kmExcedente = kmDesdeUltimaTroca - kmLimite;
+                            alerta = `<div class="alert alert-danger alert-sm mb-0" role="alert">
+                                <i class="fas fa-exclamation-triangle me-1"></i>
+                                <strong>TROCA DE ÓLEO NECESSÁRIA!</strong>
+                                <br>Passou ${kmExcedente.toFixed(0)} km do limite
+                                <br><small>Última troca: ${new Date(ultimaTroca.data_troca).toLocaleDateString('pt-BR')}</small>
+                            </div>
+                            <button class="btn btn-sm btn-success mt-2 w-100" onclick="event.stopPropagation(); abrirModalTrocaOleo(${carroId}, ${data.kmAtualOdometro})">
+                                <i class="fas fa-oil-can me-1"></i> Trocar Óleo Agora
+                            </button>`;
+                            status = '🔴 TROCA PENDENTE';
+                            classeCard = 'border-danger';
+                        } else if (kmRestantes < 200 && kmRestantes >= 0) {
+                            alerta = `<div class="alert alert-warning alert-sm mb-0" role="alert">
+                                <i class="fas fa-info-circle me-1"></i>
+                                <small>Faltam ${kmRestantes.toFixed(0)} km para próxima troca</small>
+                            </div>`;
+                            status = '⚠️ PROXIMIDADE';
+                            classeCard = 'border-warning';
+                        }
+                    }
+                    
+                    // Atualizar card
+                    const card = document.getElementById(`carro-${carroId}`);
+                    if (card) {
+                        if (classeCard) {
+                            card.classList.add(...classeCard.split(' '));
+                        }
+                        const alertaDiv = document.querySelector(`.alerta-troca-${carroId}`);
+                        const statusSpan = document.querySelector(`.status-${carroId}`);
+                        
+                        if (alertaDiv) alertaDiv.innerHTML = alerta;
+                        if (statusSpan) statusSpan.textContent = status;
+                    }
+                })
+                .catch(error => console.error('Erro ao carregar dados do carro:', error));
+        })
+        .catch(error => console.error('Erro ao carregar limite KM global:', error));
+}
+
+function abrirModalTrocaOleo(carroId, kmAtual) {
+    // Salvar dados no modal
+    document.getElementById('carroIdTroca').value = carroId;
+    document.getElementById('dataTroca').value = new Date().toISOString().split('T')[0];
+    document.getElementById('observacoesTroca').value = '';
+    
+    // Abrir modal
+    const modal = new bootstrap.Modal(document.getElementById('trocaOleoModal'));
+    modal.show();
+}
+
+// Controle de Limite de KM
+let carroSelecionadoParaKm = null;
+
+function abrirModalConfiguracaoKm() {
+    // Carregar o KM global sem necessidade de selecionar carro
+    fetch(`/limite-km/global`)
+        .then(response => response.json())
+        .then(data => {
+            const input = document.getElementById('kmLimiteGlobal');
+            input.value = data.limiteKm || '';
+            input.disabled = false;
+            input.readOnly = false;
+            
+            // Abrir modal
+            const modal = new bootstrap.Modal(document.getElementById('configuracaoKmModal'));
+            modal.show();
+            
+            // Garantir foco no input após modal abrir
+            setTimeout(() => {
+                input.focus();
+            }, 500);
+        })
+        .catch(error => {
+            console.log('Primeira vez configurando KM');
+            const input = document.getElementById('kmLimiteGlobal');
+            input.value = '';
+            input.disabled = false;
+            input.readOnly = false;
+            
+            const modal = new bootstrap.Modal(document.getElementById('configuracaoKmModal'));
+            modal.show();
+            
+            setTimeout(() => {
+                input.focus();
+            }, 500);
+        });
+}
+
+function salvarConfiguracaoKm() {
+    const kmLimite = document.getElementById('kmLimiteGlobal').value.trim();
+
+    if (!kmLimite) {
+        alert('Informe o limite de KM!');
+        return;
+    }
+
+    fetch('/limite-km', {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            km_limite: kmLimite
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Atualizar botão
+            document.getElementById('textoKm').textContent = `Configurar KM ${kmLimite} km`;
+            bootstrap.Modal.getInstance(document.getElementById('configuracaoKmModal')).hide();
+        }
+    })
+    .catch(error => {
+        alert('Erro ao salvar limite de KM');
+        console.error('Error:', error);
+    });
+}
+
+function carregarInfosCarroSelecionado() {
+    if (!carroSelecionadoParaKm) return;
+
+    fetch(`/limite-km/${carroSelecionadoParaKm}`)
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('kmAtualExibicao').textContent = data.kmAtual.toFixed(2);
+            
+            if (data.ultimaTroca) {
+                const dataTroca = new Date(data.ultimaTroca.data_troca).toLocaleDateString('pt-BR');
+                document.getElementById('ultimaTrocaExibicao').innerHTML = 
+                    `<strong>Última troca:</strong> ${dataTroca}`;
+            } else {
+                document.getElementById('ultimaTrocaExibicao').innerHTML = '<strong>Nenhuma troca registrada</strong>';
+            }
+            
+            // Verificar se precisa trocar óleo
+            verificarNecessidadeTroca(data);
+        })
+        .catch(error => {
+            console.error('Error:', error);
+        });
+}
+
+function verificarNecessidadeTroca(data) {
+    const kmAtual = parseFloat(data.kmAtual);
+    const kmLimite = parseFloat(data.limiteKm);
+    const ultimaTroca = data.ultimaTroca;
+
+    if (!ultimaTroca) {
+        // Primeira troca
+        if (kmAtual > 0) {
+            document.getElementById('alertaTroca').style.display = 'block';
+            document.getElementById('btnTrocarOleo').style.display = 'block';
+        } else {
+            document.getElementById('alertaTroca').style.display = 'none';
+            document.getElementById('btnTrocarOleo').style.display = 'none';
+        }
+    } else {
+        // kmAtual já é calculado desde a troca!
+        if (kmAtual > kmLimite) {
+            document.getElementById('alertaTroca').style.display = 'block';
+            document.getElementById('btnTrocarOleo').style.display = 'block';
+            document.getElementById('alertaTroca').innerHTML = `
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="fas fa-exclamation-circle me-2"></i>
+                    <strong>Atenção!</strong> Passou ${(kmAtual - kmLimite).toFixed(2)} km do limite. Troque o óleo!
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            `;
+        } else {
+            document.getElementById('alertaTroca').style.display = 'none';
+            document.getElementById('btnTrocarOleo').style.display = 'none';
+        }
+    }
+}
+
+function trocarOleo() {
+    if (!carroSelecionadoParaKm) {
+        alert('Selecione um carro primeiro!');
+        return;
+    }
+
+    const observacoes = prompt('Adicione observações sobre a troca (opcional):', '');
+
+    fetch('/troca-oleo', {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            carro_id: carroSelecionadoParaKm,
+            observacoes: observacoes
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Troca de óleo registrada com sucesso!');
+            // Recarregar os dados do carro
+            carregarInfosCarroSelecionado();
+        }
+    })
+    .catch(error => {
+        alert('Erro ao registrar troca de óleo');
+        console.error('Error:', error);
+    });
+}
 </script>
 
 <style>
@@ -591,5 +1101,85 @@ function deletarAbastecimento(abastecimentoId) {
 .carro-item.active .btn {
     border-color: white;
 }
+
+#kmLimiteGlobal {
+    pointer-events: auto !important;
+    cursor: text !important;
+}
+
+#kmLimiteGlobal:focus {
+    outline: none;
+    border-color: #80bdff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.alert-sm {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    margin-bottom: 0;
+}
+
+.carro-item.border-danger {
+    border-left: 4px solid #dc3545 !important;
+    background-color: #fff5f5;
+}
+
+.carro-item.border-warning {
+    border-left: 4px solid #ffc107 !important;
+    background-color: #fffbf0;
+}
 </style>
+
+<!-- Modal Configuração de KM -->
+<div class="modal fade" id="configuracaoKmModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title"><i class="fas fa-cog me-2"></i>Configuração de KM</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Configurar limite KM Global -->
+                <div class="card mb-3">
+                    <div class="card-header bg-light">
+                        <h6 class="mb-0"><i class="fas fa-sliders-h me-2"></i>Limite de KM (Global)</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="kmLimiteGlobal" class="form-label"><strong>Limite de KM entre Trocas</strong></label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" id="kmLimiteGlobal" placeholder="Ex: 5000" step="0.01" min="0">
+                                <span class="input-group-text">km</span>
+                            </div>
+                            <small class="text-muted">Este limite se aplica a todos os carros</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Informações do carro selecionado -->
+                <div class="card">
+                    <div class="card-header bg-light">
+                        <h6 class="mb-0"><i class="fas fa-car me-2"></i>Informações do Carro</h6>
+                    </div>
+                    <div class="card-body">
+                        <div id="alertaTroca"></div>
+                        
+                        <p class="mb-2"><strong>KM Atual:</strong> <span id="kmAtualExibicao">0</span> km</p>
+                        <p class="mb-0" id="ultimaTrocaExibicao"><strong>Última troca:</strong> Nenhuma registrada</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-success" id="btnTrocarOleo" onclick="trocarOleo()" style="display: none;">
+                    <i class="fas fa-oil-can"></i> Trocar Óleo
+                </button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-info" onclick="salvarConfiguracaoKm()">
+                    <i class="fas fa-save"></i> Salvar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @endsection

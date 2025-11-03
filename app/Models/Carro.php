@@ -15,4 +15,9 @@ class Carro extends Model
     {
         return $this->hasMany(Abastecimento::class);
     }
+
+    public function trocaOleos()
+    {
+        return $this->hasMany(TrocaOleo::class);
+    }
 }

@@ -18,6 +18,7 @@ use App\Http\Controllers\ProdutoController;
 use App\Http\Controllers\SorteioController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\UsuarioController;
+use App\Http\Controllers\LimiteKmController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\GitWebhookController;
 use App\Http\Controllers\MenssageController;
@@ -206,7 +207,13 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/buscar-ganhador', [SorteioController::class, 'buscarGanhador']);
     
+    Route::get('/carros/buscar', [CarroController::class, 'buscar'])->name('carros.buscar');
+    Route::get('/carros/listar', [CarroController::class, 'listar'])->name('carros.listar');
     Route::resource('carros', CarroController::class);
+    Route::get('/limite-km/global', [LimiteKmController::class, 'getGlobal'])->name('limite-km.global');
+    Route::get('/limite-km/{carro}', [LimiteKmController::class, 'show'])->name('limite-km.show');
+    Route::post('/limite-km', [LimiteKmController::class, 'store'])->name('limite-km.store');
+    Route::post('/troca-oleo', [LimiteKmController::class, 'registrarTroca'])->name('troca-oleo.store');
     Route::post('/abastecimentos', [AbastecimentoController::class, 'store'])->name('abastecimentos.store');
     Route::get('/carros/{carro}/abastecimentos', [AbastecimentoController::class, 'getAbastecimentos'])->name('abastecimentos.get');
     Route::delete('/abastecimentos/{abastecimento}', [AbastecimentoController::class, 'destroy'])->name('abastecimentos.destroy');

@@ -75,7 +75,7 @@ class CronController extends Controller
             'text' => $mensagemFormatada,
         ]);
 
-        $url = "http://147.79.111.119:8080/message/sendText/{$mensagem->device->session}";
+        $url = "http://148.230.93.238:8081/message/sendText/{$mensagem->device->session}";
 
         $request = new Request('POST', $url, $headers, $body);
 
@@ -238,7 +238,7 @@ class CronController extends Controller
         }
 
         $client = new \GuzzleHttp\Client();
-        $url = "http://147.79.111.119:8080/message/sendMedia/{$session}";
+        $url = "http://148.230.93.238:8081/message/sendMedia/{$session}";
 
         $headers = [
             'Content-Type' => 'application/json',
@@ -392,7 +392,7 @@ class CronController extends Controller
     private function enviarNotificacao($session, $numero, $mensagem)
     {
         $client = new Client();
-        $url = "http://147.79.111.119:8080/message/sendText/{$session}";
+        $url = "http://148.230.93.238:8081/message/sendText/{$session}";
 
         $headers = [
             'Content-Type' => 'application/json',
@@ -450,7 +450,7 @@ class CronController extends Controller
                     ]
                 ]);
 
-                $url = "http://147.79.111.119:8080/webhook/set/{$device->session}";
+                $url = "http://148.230.93.238:8081/webhook/set/{$device->session}";
                 $request = new \GuzzleHttp\Psr7\Request('POST', $url, $headers, $body);
                 $response = $client->sendAsync($request)->wait();
 

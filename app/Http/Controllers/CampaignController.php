@@ -152,8 +152,10 @@ class CampaignController extends Controller
             return redirect()->route('campaign.index')->with('error', 'Campanha não encontrada.');
         }
         $imagens = ImagemEmMassa::all();
+        $contacts = ContactList::all();
+        $devices = \App\Models\Device::all();
 
-        return view('sistema.campaign.edit', compact('imagens', 'campaign'));
+        return view('sistema.campaign.edit', compact('imagens', 'campaign', 'contacts', 'devices'));
     }
     public function update(Request $request, $id)
     {
@@ -164,8 +166,6 @@ class CampaignController extends Controller
         if ($validator->fails()) {
             return back()->withErrors($validator)->withInput();
         }
-
-
 
         if (!isset($request->imagem_id)) {
             return redirect()->back()->with('error', 'Seleciono uma Imagens')->withInput();
@@ -181,7 +181,27 @@ class CampaignController extends Controller
         $campaign->titulo = $request->titulo;
         $campaign->texto = $request->texto;
         $campaign->imagem_id = $request->imagem_id;
+        $campaign->contact_id = $request->contact_id;
         $campaign->save();
+
+        // Atualizar dispositivos se fornecidos
+        if ($request->has('devices')) {
+            $devices = $request->devices ?? [];
+            // Aqui você pode atualizar a relação de dispositivos se necessário
+        }
+
+        // Lógica para zerar send baseado nos contatos ligados à campanha
+        $campaignContacts = CampaignContact::where('campaign_id', $id)->get();
+        
+        if ($campaignContacts->isNotEmpty()) {
+            $totalContacts = $campaignContacts->count();
+            $totalSent = $campaignContacts->where('send', 1)->count();
+            
+            // Se TODOS têm send=1 OU NENHUM tem send=1, zera todos para 0
+            if ($totalSent == $totalContacts || $totalSent == 0) {
+                CampaignContact::where('campaign_id', $id)->update(['send' => 0]);
+            }
+        }
 
         return redirect()->route('campaign.index')->with('success', 'Campanha atualizada com sucesso.');
     }

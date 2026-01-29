@@ -140,27 +140,46 @@
             @csrf
             @method('PUT')
             <div class="row">
+                {{-- Coluna Esquerda --}}
                 <div class="col-md-6">
-                    <div class="form-group">
-                        <label for="titulo">Titulo da Campanha</label>
-                        <input type="text" name="titulo" class="form-control @error('titulo') is-invalid @enderror" value="{{ old('titulo', $campaign->titulo) }}">
+                    <div class="mb-3">
+                        <label for="titulo" class="form-label">Título da Campanha</label>
+                        <input type="text" name="titulo" id="titulo"
+                            class="form-control @error('titulo') is-invalid @enderror" value="{{ old('titulo', $campaign->titulo) }}">
                         @error('titulo')
                             <div class="invalid-feedback">{{ $message }}</div>
                         @enderror
                     </div>
-                    <div class="form-group">
-                        <label for="texto">Mensagem</label>
-                        <textarea name="texto" class="form-control @error('texto') is-invalid @enderror" rows="3">{{ old('texto', $campaign->texto) }}</textarea>
+
+                    <div class="mb-3">
+                        <label for="texto" class="form-label">Mensagem</label>
+                        <textarea name="texto" id="texto" class="form-control @error('texto') is-invalid @enderror" rows="3">{{ old('texto', $campaign->texto) }}</textarea>
                         @error('texto')
                             <div class="invalid-feedback">{{ $message }}</div>
                         @enderror
                     </div>
 
-                    <div class="right-input">
-                        <button type="submit" class="btn btn-success">Atualizar</button>
-                        <input type="file" name="csvFile" id="csvFile" style="display: none;">
+                    <div class="mb-3">
+                        <label class="form-label">Selecione a Lista de Contato</label>
+                        <div class="d-flex flex-wrap gap-2">
+                            @foreach ($contacts as $contact)
+                                <div>
+                                    <input type="radio" class="btn-check" name="contact_id"
+                                        id="contact{{ $contact->id }}" value="{{ $contact->id }}"
+                                        autocomplete="off"
+                                        {{ old('contact_id', $campaign->contact_id) == $contact->id ? 'checked' : '' }}>
+                                    <label class="btn btn-outline-success" for="contact{{ $contact->id }}">
+                                        {{ $contact->name }}
+                                    </label>
+                                </div>
+                            @endforeach
+                        </div>
                     </div>
+
+                    <button type="submit" class="btn btn-success">Atualizar</button>
                 </div>
+
+                {{-- Coluna Direita --}}
                 <div class="col-md-6">
                     <div class="right-input" style="display: flex; align-items: center;">
                         <!-- Aqui estão os radio buttons com as imagens -->
@@ -170,6 +189,21 @@
                                 <img src="{{ asset($imagem->caminho) }}" alt="Imagem">
                             </label>
                         @endforeach
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Selecione os Dispositivos</label>
+                        <div class="d-flex flex-wrap gap-2">
+                            @foreach ($devices as $device)
+                                <div>
+                                    <input type="checkbox" class="btn-check" name="devices[]"
+                                        id="device{{ $device->id }}" value="{{ $device->id }}"
+                                        {{ is_array(old('devices')) && in_array($device->id, old('devices')) ? 'checked' : '' }}>
+                                    <label class="btn btn-outline-primary" for="device{{ $device->id }}">
+                                        {{ $device->alias ?? "TEL: #$device->name" }}
+                                    </label>
+                                </div>
+                            @endforeach
+                        </div>
                     </div>
                 </div>
             </div>

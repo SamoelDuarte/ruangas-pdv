@@ -147,15 +147,20 @@ class CampaignController extends Controller
     }
     public function edit($id)
     {
-        $campaign = Campaign::find($id);
+        $campaign = Campaign::with('devices')->find($id);
         if (!$campaign) {
             return redirect()->route('campaign.index')->with('error', 'Campanha não encontrada.');
         }
         $imagens = ImagemEmMassa::all();
-        $contacts = ContactList::all();
-        $devices = \App\Models\Device::all();
+        $contacts = Contact::withCount('contactLists')->get();
+        $devices = \App\Models\Device::where('status', 'open')
+                                     ->where('name', 'not like', '-%')
+                                     ->get();
+        
+        // Obter IDs dos devices já selecionados
+        $selectedDevices = $campaign->devices->pluck('id')->toArray();
 
-        return view('sistema.campaign.edit', compact('imagens', 'campaign', 'contacts', 'devices'));
+        return view('sistema.campaign.edit', compact('imagens', 'campaign', 'contacts', 'devices', 'selectedDevices'));
     }
     public function update(Request $request, $id)
     {
@@ -167,8 +172,12 @@ class CampaignController extends Controller
             return back()->withErrors($validator)->withInput();
         }
 
+        if (!isset($request->contact_id)) {
+            return redirect()->back()->with('error', 'Selecione uma lista de Contato.')->withInput();
+        }
+
         if (!isset($request->imagem_id)) {
-            return redirect()->back()->with('error', 'Seleciono uma Imagens')->withInput();
+            return redirect()->back()->with('error', 'Selecione uma Imagem')->withInput();
         }
 
         // Encontrar a campanha pelo ID
@@ -179,30 +188,39 @@ class CampaignController extends Controller
 
         // Atualizar os campos da campanha
         $campaign->titulo = $request->titulo;
-        $campaign->texto = $request->texto;
+        $campaign->texto = $request->texto ?? null;
         $campaign->imagem_id = $request->imagem_id;
         $campaign->contact_id = $request->contact_id;
         $campaign->save();
 
-        // Atualizar dispositivos se fornecidos
-        if ($request->has('devices')) {
-            $devices = $request->devices ?? [];
-            // Aqui você pode atualizar a relação de dispositivos se necessário
+        // Remover relacionamentos antigos entre campanha e contatos
+        CampaignContact::where('campaign_id', $id)->delete();
+
+        // Criar novos relacionamentos com os contatos da lista selecionada
+        $contactLists = ContactList::where('contact_id', $request->contact_id)->get();
+        foreach ($contactLists as $contactList) {
+            $campaignContact = new CampaignContact();
+            $campaignContact->campaign_id = $campaign->id;
+            $campaignContact->contact_list_id = $contactList->id;
+            $campaignContact->send = false;
+            $campaignContact->save();
         }
 
-        // Lógica para zerar send baseado nos contatos ligados à campanha
-        $campaignContacts = CampaignContact::where('campaign_id', $id)->get();
-        
-        if ($campaignContacts->isNotEmpty()) {
-            $totalContacts = $campaignContacts->count();
-            $totalSent = $campaignContacts->where('send', 1)->count();
-            
-            // Se TODOS têm send=1 OU NENHUM tem send=1, zera todos para 0
-            if ($totalSent == $totalContacts || $totalSent == 0) {
-                CampaignContact::where('campaign_id', $id)->update(['send' => 0]);
+        // Remover relacionamentos antigos entre campanha e dispositivos
+        DB::table('campaign_device')->where('campaign_id', $id)->delete();
+
+        // Se o usuário selecionou devices
+        if ($request->has('devices') && is_array($request->devices)) {
+            foreach ($request->devices as $deviceId) {
+                DB::table('campaign_device')->insert([
+                    'campaign_id' => $campaign->id,
+                    'device_id' => $deviceId,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
             }
         }
 
-        return redirect()->route('campaign.index')->with('success', 'Campanha atualizada com sucesso.');
+        return Redirect::route('campaign.index')->with('success', 'Campanha atualizada com sucesso.');
     }
 }

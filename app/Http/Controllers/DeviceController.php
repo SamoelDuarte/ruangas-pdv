@@ -67,10 +67,11 @@ class DeviceController extends Controller
         $device->data_ultima_recarga = $request->data_ultima_recarga;
         $device->save();
 
-        $qrcode = $this->getQrCode($device->session);
+        $qrcode = $this->getQrCode($device->session, $device->name);
         
         // Configurar webhook para o novo dispositivo
         $this->configurarWebhookDevice($device->session);
+        $this->configurarChatwootDevice($device);
 
         return response()->json([
             'session' => $device->session,
@@ -105,11 +106,19 @@ class DeviceController extends Controller
     public function updateStatus(Request $request)
     {
         $device = Device::find($request->id);
+        $previousStatus = $device?->status;
 
         $device->status = $request->status;
         $device->picture = $request->picture;
         $device->jid = $request->jid;
         $device->update();
+
+        $isNowConnected = strtolower((string) $request->status) === 'open';
+        $wasConnected = strtolower((string) $previousStatus) === 'open';
+
+        if ($isNowConnected && !$wasConnected && !empty($device->session)) {
+            $this->configurarChatwootDevice($device);
+        }
 
         return response()->json(['status' => '1']);
     }
@@ -123,7 +132,7 @@ class DeviceController extends Controller
         return response()->json(['status' => '1']);
     }
 
-    public function getQrCode($session)
+    public function getQrCode($session, $deviceName = null)
     {
         $url = env('APP_URL_ZAP') . '/instance/create';
 
@@ -133,30 +142,146 @@ class DeviceController extends Controller
             "integration"  => "WHATSAPP-BAILEYS"
         ];
 
-        $options = [
-            CURLOPT_URL            => $url,
-            CURLOPT_POST           => true,
-            CURLOPT_POSTFIELDS     => json_encode($data),
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_HTTPHEADER     => [
-                'apikey: ' . env('TOKEN_EVOLUTION'),
-                'Content-Type: application/json'
-            ]
+        $chatwootAccountId = env('CHATWOOT_ACCOUNT_ID');
+        $chatwootToken = env('CHATWOOT_TOKEN');
+        $chatwootUrl = env('CHATWOOT_URL');
+
+        // Integra Chatwoot já na criação da instância conforme a documentação da Evolution.
+        if (!empty($chatwootAccountId) && !empty($chatwootToken) && !empty($chatwootUrl)) {
+            $data['chatwootAccountId'] = (string) $chatwootAccountId;
+            $data['chatwootToken'] = $chatwootToken;
+            $data['chatwootUrl'] = rtrim($chatwootUrl, '/');
+            $data['chatwootSignMsg'] = true;
+            $data['chatwootReopenConversation'] = true;
+            $data['chatwootConversationPending'] = false;
+            $data['chatwootImportContacts'] = true;
+            $data['chatwootNameInbox'] = !empty($deviceName) ? $deviceName : 'evolution';
+            $data['chatwootMergeBrazilContacts'] = true;
+            $data['chatwootImportMessages'] = true;
+            $data['chatwootDaysLimitImportMessages'] = (int) env('CHATWOOT_DAYS_LIMIT_IMPORT_MESSAGES', 3);
+            $data['chatwootOrganization'] = env('CHATWOOT_ORGANIZATION', 'BOT');
+            $data['chatwootLogo'] = env('CHATWOOT_LOGO_URL', '');
+        }
+
+        $requestTimeout = (int) env('EVOLUTION_REQUEST_TIMEOUT', 30);
+        $connectTimeout = (int) env('EVOLUTION_CONNECT_TIMEOUT', 10);
+        $maxQrRetries = (int) env('EVOLUTION_QRCODE_RETRIES', 8);
+        $retryDelayMs = (int) env('EVOLUTION_QRCODE_RETRY_DELAY_MS', 1500);
+
+        try {
+            $client = new Client([
+                'timeout' => $requestTimeout,
+                'connect_timeout' => $connectTimeout,
+            ]);
+
+            $response = $client->request('POST', $url, [
+                'headers' => [
+                    'apikey' => env('TOKEN_EVOLUTION'),
+                    'Content-Type' => 'application/json',
+                ],
+                'json' => $data,
+            ]);
+
+            $result = json_decode((string) $response->getBody(), true);
+            $qrCode = $this->extractQrCodeFromResponse($result);
+
+            if (!$qrCode) {
+                for ($attempt = 1; $attempt <= $maxQrRetries; $attempt++) {
+                    if ($retryDelayMs > 0) {
+                        usleep($retryDelayMs * 1000);
+                    }
+
+                    $qrCode = $this->fetchQrCodeFromInstance($session, $client);
+
+                    if ($qrCode) {
+                        break;
+                    }
+                }
+            }
+
+            if (!$qrCode) {
+                Log::warning("QR Code não retornado pela Evolution para a sessão {$session} após {$maxQrRetries} tentativas");
+            }
+
+            return $qrCode ?: false;
+        } catch (\Exception $e) {
+            Log::error("Erro ao criar/buscar QR Code da sessão {$session}: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    private function fetchQrCodeFromInstance($session, Client $client)
+    {
+        $baseUrl = rtrim((string) env('APP_URL_ZAP'), '/');
+
+        $attempts = [
+            ['GET', "/instance/connect/{$session}"],
+            ['POST', "/instance/connect/{$session}"],
+            ['GET', "/instance/qrCode/{$session}"],
+            ['GET', "/instance/connectionState/{$session}"],
         ];
 
-        $ch = curl_init();
-        curl_setopt_array($ch, $options);
-        $response = curl_exec($ch);
+        foreach ($attempts as [$method, $path]) {
+            try {
+                $response = $client->request($method, $baseUrl . $path, [
+                    'headers' => [
+                        'apikey' => env('TOKEN_EVOLUTION'),
+                        'Content-Type' => 'application/json',
+                    ],
+                ]);
 
-        if (curl_errno($ch)) {
-            curl_close($ch);
+                $result = json_decode((string) $response->getBody(), true);
+                $qrCode = $this->extractQrCodeFromResponse($result);
+
+                if ($qrCode) {
+                    return $qrCode;
+                }
+            } catch (\Exception $e) {
+                // Tenta o próximo endpoint sem interromper o fluxo.
+            }
+        }
+
+        return false;
+    }
+
+    private function extractQrCodeFromResponse($result)
+    {
+        if (!is_array($result)) {
             return false;
         }
 
-        curl_close($ch);
-        $result = json_decode($response, true);
+        $paths = [
+            ['qrcode', 'base64'],
+            ['qrcode', 'code'],
+            ['qrcode'],
+            ['qrCode', 'base64'],
+            ['qrCode'],
+            ['base64'],
+            ['qr'],
+            ['data', 'qrcode', 'base64'],
+            ['data', 'qrcode'],
+            ['response', 'qrcode', 'base64'],
+            ['response', 'qrcode'],
+        ];
 
-        return $result['qrcode']['base64'] ?? false;
+        foreach ($paths as $path) {
+            $value = $result;
+
+            foreach ($path as $segment) {
+                if (!is_array($value) || !array_key_exists($segment, $value)) {
+                    $value = null;
+                    break;
+                }
+
+                $value = $value[$segment];
+            }
+
+            if (is_string($value) && trim($value) !== '') {
+                return $value;
+            }
+        }
+
+        return false;
     }
 
     public function gerarQr(Request $request)
@@ -178,7 +303,7 @@ class DeviceController extends Controller
         $device->end_seconds = $request->end_seconds;
         $device->save();
 
-        $qrCode = $this->getQrCode($device->session);
+        $qrCode = $this->getQrCode($device->session, $device->name);
 
         if ($qrCode) {
             return response()->json(['qr_code' => $qrCode]);
@@ -393,10 +518,11 @@ class DeviceController extends Controller
             $device->save();
 
             // Gerar novo QR code
-            $qrcode = $this->getQrCode($device->session);
+            $qrcode = $this->getQrCode($device->session, $device->name);
             
             // Configurar webhook para o dispositivo reconectado
             $this->configurarWebhookDevice($device->session);
+            $this->configurarChatwootDevice($device);
 
             if ($qrcode) {
                 return response()->json([
@@ -494,7 +620,7 @@ class DeviceController extends Controller
                 'body' => $body
             ]);
 
-            if ($response->getStatusCode() === 200) {
+            if ($response->getStatusCode() >= 200 && $response->getStatusCode() < 300) {
                 Log::info("Webhook configurado com sucesso para sessão: {$session}");
                 return true;
             } else {
@@ -504,6 +630,65 @@ class DeviceController extends Controller
 
         } catch (\Exception $e) {
             Log::error("Erro ao configurar webhook da sessão {$session}: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Configura a integração do Chatwoot para um dispositivo conectado
+     */
+    private function configurarChatwootDevice(Device $device)
+    {
+        $chatwootAccountId = env('CHATWOOT_ACCOUNT_ID');
+        $chatwootToken = env('CHATWOOT_TOKEN');
+        $chatwootUrl = env('CHATWOOT_URL');
+
+        if (empty($chatwootAccountId) || empty($chatwootToken) || empty($chatwootUrl)) {
+            Log::warning("Chatwoot não configurado no .env para a sessão {$device->session}");
+            return false;
+        }
+
+        try {
+            $client = new Client();
+
+            $payload = [
+                'enabled' => true,
+                'accountId' => (string) $chatwootAccountId,
+                'token' => $chatwootToken,
+                'url' => rtrim($chatwootUrl, '/'),
+                'signMsg' => true,
+                'reopenConversation' => true,
+                'conversationPending' => false,
+                'nameInbox' => $device->name ?: 'evolution',
+                'mergeBrazilContacts' => true,
+                'importContacts' => true,
+                'importMessages' => true,
+                'daysLimitImportMessages' => 2,
+                'signDelimiter' => "\n",
+                'autoCreate' => true,
+                'auto_create' => true,
+                'organization' => env('CHATWOOT_ORGANIZATION', 'BOT'),
+                'logo' => env('CHATWOOT_LOGO_URL', ''),
+            ];
+
+            $url = env('APP_URL_ZAP') . "/chatwoot/set/{$device->session}";
+            $response = $client->request('POST', $url, [
+                'headers' => [
+                    'Content-Type' => 'application/json',
+                    'apikey' => env('TOKEN_EVOLUTION'),
+                ],
+                'json' => $payload,
+            ]);
+
+            if ($response->getStatusCode() >= 200 && $response->getStatusCode() < 300) {
+                Log::info("Chatwoot configurado com sucesso para sessão: {$device->session}");
+                return true;
+            }
+
+            Log::warning("Resposta inesperada ao configurar Chatwoot da sessão {$device->session}: " . $response->getStatusCode() . ' | body: ' . (string) $response->getBody());
+            return false;
+        } catch (\Exception $e) {
+            Log::error("Erro ao configurar Chatwoot da sessão {$device->session}: " . $e->getMessage());
             return false;
         }
     }

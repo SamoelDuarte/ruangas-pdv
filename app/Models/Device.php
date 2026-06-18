@@ -30,7 +30,7 @@ class Device extends Model
     protected $attributes = [
         'start_minutes' => 0,
         'start_seconds' => 0,
-        'end_minutes' => 1,
+        'end_minutes' => 3,
         'end_seconds' => 0,
     ];
 

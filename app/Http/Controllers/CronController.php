@@ -209,16 +209,20 @@ class CronController extends Controller
                 $imagem = asset($campaign->imagem->caminho);
                 $texto = $campaign->texto ?? '';
 
-                $this->sendImage($device->session, $contact->phone, $imagem, $texto);
+                $sendOk = $this->sendImage($device->session, $contact->phone, $imagem, $texto);
 
-                // Atualiza o updated_at do device
-                $device->touch();
+                if ($sendOk) {
+                    // Atualiza o updated_at do device apenas quando a API confirmou aceitação
+                    $device->touch();
 
-                // Marca este contato específico como enviado
-                $contact->pivot->send = true;
-                $contact->pivot->save();
+                    // Marca contato como enviado apenas em sucesso real
+                    $contact->pivot->send = true;
+                    $contact->pivot->save();
 
-                echo "Enviado para {$contact->phone} via device {$device->id} <br>";
+                    echo "Enviado para {$contact->phone} via device {$device->id} <br>";
+                } else {
+                    echo "Falha ao enviar para {$contact->phone} via device {$device->id} <br>";
+                }
             }
 
             // Já processou este contato, vai para a próxima campanha
@@ -266,7 +270,7 @@ class CronController extends Controller
             $response = $client->sendAsync($request)->wait();
             
             $statusCode = $response->getStatusCode();
-            $responseBody = json_decode($response->getBody(), true);
+            $responseBody = json_decode((string) $response->getBody(), true);
 
             // Log detalhado da resposta
             Log::info("Resposta da Evolution API", [
@@ -276,13 +280,13 @@ class CronController extends Controller
                 'session' => $session
             ]);
 
-            if ($statusCode === 200) {
+            if ($statusCode >= 200 && $statusCode < 300) {
                 Log::info("Mensagem enviada com sucesso", [
                     'numero' => '55' . $numero,
                     'session' => $session,
                     'responseBody' => $responseBody
                 ]);
-                return $responseBody;
+                return true;
             } else {
                 Log::warning("Resposta inesperada da Evolution API", [
                     'numero' => '55' . $numero,

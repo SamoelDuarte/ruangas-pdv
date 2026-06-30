@@ -450,8 +450,15 @@ class CronController extends Controller
             return null;
         }
 
-        if (strpos($recipient, '@') !== false) {
-            return $recipient;
+        if (preg_match('/^(\d{10,15})@(s\.whatsapp\.net|c\.us)$/', $recipient, $matches)) {
+            $digits = $matches[1];
+            if (!str_starts_with($digits, '55')) {
+                $digits = '55' . $digits;
+            }
+            if (strlen($digits) >= 12 && strlen($digits) <= 15) {
+                return $digits;
+            }
+            return null;
         }
 
         $digits = preg_replace('/[^0-9]/', '', $recipient);
@@ -463,7 +470,6 @@ class CronController extends Controller
             $digits = '55' . $digits;
         }
 
-        // Exige número no formato internacional com 11 a 13 dígitos após 55
         if (strlen($digits) < 12 || strlen($digits) > 15) {
             return null;
         }

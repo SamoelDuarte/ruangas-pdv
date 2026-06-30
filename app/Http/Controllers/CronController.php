@@ -346,11 +346,27 @@ class CronController extends Controller
 
     private function warmupDevice(Device $device, $devices)
     {
+        Log::info("Tentando warmup para device", [
+            'device_id' => $device->id,
+            'device_session' => $device->session,
+            'device_jid' => $device->jid,
+            'peer_count' => $devices->count(),
+        ]);
+
+        if (empty($device->jid)) {
+            Log::warning("Warmup falhou: sender sem JID", ['device_id' => $device->id]);
+            return false;
+        }
+
         $peer = $devices->first(function ($candidate) {
             return $this->formatWarmupRecipient($candidate->jid) !== null;
         });
 
         if (!$peer) {
+            Log::warning("Warmup falhou: nenhum peer com JID válido encontrado", [
+                'device_id' => $device->id,
+                'candidate_ids' => $devices->pluck('id')->all(),
+            ]);
             return false;
         }
 
@@ -358,12 +374,23 @@ class CronController extends Controller
         $peerRecipient = $this->formatWarmupRecipient($peer->jid);
 
         if (!$senderRecipient || !$peerRecipient) {
-            Log::warning("Warmup ignorado: JID inválido em sender {$device->id} ou peer {$peer->id}", [
+            Log::warning("Warmup ignorado: JID inválido em sender ou peer", [
+                'sender_id' => $device->id,
                 'sender_jid' => $device->jid,
+                'peer_id' => $peer->id,
                 'peer_jid' => $peer->jid,
+                'sender_recipient' => $senderRecipient,
+                'peer_recipient' => $peerRecipient,
             ]);
             return false;
         }
+
+        Log::info("Warmup selecionado peer", [
+            'sender_id' => $device->id,
+            'peer_id' => $peer->id,
+            'sender_recipient' => $senderRecipient,
+            'peer_recipient' => $peerRecipient,
+        ]);
 
         $warmupMessages = [
             "Olá, estou verificando a conexão antes de começar os envios. Pode responder para validar o chat?",
@@ -382,13 +409,23 @@ class CronController extends Controller
 
         $sentFirst = $this->sendDeviceText($device->session, $peerRecipient, $firstText);
         if (!$sentFirst) {
-            Log::warning("Warmup falhou no primeiro envio", ['sender_id' => $device->id, 'peer_id' => $peer->id]);
+            Log::warning("Warmup falhou no primeiro envio", [
+                'sender_id' => $device->id,
+                'peer_id' => $peer->id,
+                'sender_recipient' => $senderRecipient,
+                'peer_recipient' => $peerRecipient,
+            ]);
             return false;
         }
 
         $sentSecond = $this->sendDeviceText($peer->session, $senderRecipient, $secondText);
         if (!$sentSecond) {
-            Log::warning("Warmup falhou no segundo envio", ['sender_id' => $device->id, 'peer_id' => $peer->id]);
+            Log::warning("Warmup falhou no segundo envio", [
+                'sender_id' => $device->id,
+                'peer_id' => $peer->id,
+                'sender_recipient' => $senderRecipient,
+                'peer_recipient' => $peerRecipient,
+            ]);
             return false;
         }
 
@@ -428,16 +465,27 @@ class CronController extends Controller
             $request = new \GuzzleHttp\Psr7\Request('POST', $url, $headers, $body);
             $response = $client->sendAsync($request)->wait();
             $statusCode = $response->getStatusCode();
+            $responseBody = (string) $response->getBody();
 
             if ($statusCode >= 200 && $statusCode < 300) {
-                Log::info("Warmup enviado com sucesso para {$recipient} via session {$session}");
+                Log::info("Warmup enviado com sucesso para {$recipient} via session {$session}", [
+                    'response' => $responseBody,
+                ]);
                 return true;
             }
 
-            Log::warning("Warmup falhou com status inesperado", ['session' => $session, 'recipient' => $recipient, 'status' => $statusCode]);
+            Log::warning("Warmup falhou com status inesperado", [
+                'session' => $session,
+                'recipient' => $recipient,
+                'status' => $statusCode,
+                'response' => $responseBody,
+            ]);
             return false;
         } catch (\Exception $e) {
-            Log::error("Erro ao enviar warmup para {$recipient}", ['session' => $session, 'erro' => $e->getMessage()]);
+            Log::error("Erro ao enviar warmup para {$recipient}", [
+                'session' => $session,
+                'erro' => $e->getMessage(),
+            ]);
             return false;
         }
     }

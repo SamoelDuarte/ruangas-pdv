@@ -261,7 +261,11 @@ class CronController extends Controller
             $numero = substr($numero, 2);
         }
 
-        $client = new \GuzzleHttp\Client();
+        $client = new \GuzzleHttp\Client([
+            'timeout' => 15,
+            'connect_timeout' => 10,
+            'http_errors' => false,
+        ]);
         $url = rtrim((string) env('APP_URL_ZAP'), '/') . "/message/sendMedia/{$session}";
 
         $headers = [
@@ -396,7 +400,11 @@ class CronController extends Controller
             $recipient = '55' . preg_replace('/[^0-9]/', '', $recipient);
         }
 
-        $client = new \GuzzleHttp\Client();
+        $client = new \GuzzleHttp\Client([
+            'timeout' => 15,
+            'connect_timeout' => 10,
+            'http_errors' => false,
+        ]);
         $url = rtrim((string) env('APP_URL_ZAP'), '/') . "/message/sendText/{$session}";
 
         $headers = [

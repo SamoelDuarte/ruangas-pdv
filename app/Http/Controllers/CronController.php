@@ -13,6 +13,7 @@ use App\Models\Messagen;
 use App\Models\Planilha;
 use GuzzleHttp\Psr7\Request;
 use Illuminate\Http\Request as HttpRequest;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -202,6 +203,25 @@ class CronController extends Controller
                     break; // Sai do loop se não houver mais contatos
                 }
 
+                // Se o device não estiver aquecido, tenta fazer a troca de mensagens com outro device.
+                if (!$this->isDeviceWarmed($device)) {
+                    $peerDevice = $this->findWarmupPeerDevice($device, $campaign->devices->where('id', '!=', $device->id));
+
+                    if ($peerDevice) {
+                        $warmupOk = $this->performWarmupExchange($device, $peerDevice);
+
+                        if (!$warmupOk) {
+                            echo "Falha ao aquecer device {$device->id} com peer {$peerDevice->id}.<br>";
+                            continue;
+                        }
+
+                        echo "Device {$device->id} aquecido com sucesso usando peer {$peerDevice->id}.<br>";
+                    } else {
+                        echo "Nenhum peer disponível para aquecer device {$device->id}.<br>";
+                        continue;
+                    }
+                }
+
                 // Pega o próximo contato da lista
                 $contact = $contactList[$index];
 
@@ -303,6 +323,106 @@ class CronController extends Controller
                 'erro' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
+            return false;
+        }
+    }
+
+    private function isDeviceWarmed(Device $device)
+    {
+        return Cache::has("device_warmed:{$device->id}");
+    }
+
+    private function markDeviceWarmed(Device $device)
+    {
+        Cache::put("device_warmed:{$device->id}", true, now()->addMinutes(60));
+    }
+
+    private function findWarmupPeerDevice(Device $device, $devices)
+    {
+        $peer = $devices->firstWhere('status', 'open');
+
+        if ($peer && $peer->jid) {
+            return $peer;
+        }
+
+        return Device::where('status', 'open')
+            ->whereNotNull('jid')
+            ->where('id', '!=', $device->id)
+            ->first();
+    }
+
+    private function performWarmupExchange(Device $sender, Device $recipient)
+    {
+        if (empty($sender->jid) || empty($recipient->jid)) {
+            Log::warning("Warmup ignorado: falta JID em sender {$sender->id} ou recipient {$recipient->id}");
+            return false;
+        }
+
+        $warmupMessages = [
+            "Olá, estou verificando a conexão antes de começar os envios. Pode responder para validar o chat?",
+            "Oi, preciso confirmar que temos uma conversa ativa entre dispositivos antes de enviar as mensagens de campanha.",
+            "Teste de conexão: vamos trocar duas mensagens para aquecer o envio e evitar bloqueios."
+        ];
+
+        $warmupResponses = [
+            "Recebido, validação feita. Estou pronto para enviar.",
+            "Tudo certo, a conexão foi aceita e posso continuar.",
+            "Conversa estabelecida com sucesso. Pode prosseguir com os envios."
+        ];
+
+        $firstText = $warmupMessages[array_rand($warmupMessages)];
+        $secondText = $warmupResponses[array_rand($warmupResponses)];
+
+        $sentFirst = $this->sendDeviceText($sender->session, $recipient->jid, $firstText);
+        if (!$sentFirst) {
+            return false;
+        }
+
+        $sentSecond = $this->sendDeviceText($recipient->session, $sender->jid, $secondText);
+        if (!$sentSecond) {
+            return false;
+        }
+
+        $this->markDeviceWarmed($sender);
+        $this->markDeviceWarmed($recipient);
+
+        return true;
+    }
+
+    private function sendDeviceText($session, $numberOrJid, $text)
+    {
+        $recipient = trim($numberOrJid);
+        if (strpos($recipient, '@') === false) {
+            $recipient = '55' . preg_replace('/[^0-9]/', '', $recipient);
+        }
+
+        $client = new \GuzzleHttp\Client();
+        $url = rtrim((string) env('APP_URL_ZAP'), '/') . "/message/sendText/{$session}";
+
+        $headers = [
+            'Content-Type' => 'application/json',
+            'apikey' => env('TOKEN_EVOLUTION'),
+        ];
+
+        $body = json_encode([
+            'number' => $recipient,
+            'text' => $text,
+        ]);
+
+        try {
+            $request = new \GuzzleHttp\Psr7\Request('POST', $url, $headers, $body);
+            $response = $client->sendAsync($request)->wait();
+            $statusCode = $response->getStatusCode();
+
+            if ($statusCode >= 200 && $statusCode < 300) {
+                Log::info("Warmup enviado com sucesso para {$recipient} via session {$session}");
+                return true;
+            }
+
+            Log::warning("Warmup falhou com status inesperado", ['session' => $session, 'recipient' => $recipient, 'status' => $statusCode]);
+            return false;
+        } catch (\Exception $e) {
+            Log::error("Erro ao enviar warmup para {$recipient}", ['session' => $session, 'erro' => $e->getMessage()]);
             return false;
         }
     }

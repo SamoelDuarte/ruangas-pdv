@@ -145,6 +145,12 @@ class CronController extends Controller
                 continue;
             }
 
+            // Se a campanha não tiver imagem ou caminho de imagem, pula
+            if (!$campaign->imagem || empty($campaign->imagem->caminho)) {
+                echo "Campanha {$campaign->id} sem imagem válida, pulando.<br>";
+                continue;
+            }
+
             // Filtra apenas contatos com telefone
             $contactList = $contactList->filter(function($contact) {
                 return !empty($contact->phone);
@@ -205,19 +211,16 @@ class CronController extends Controller
 
                 // Se o device não estiver aquecido, tenta fazer a troca de mensagens com outro device.
                 if (!$this->isDeviceWarmed($device)) {
-                    $peerDevice = $this->findWarmupPeerDevice($device, $campaign->devices->where('id', '!=', $device->id));
+                    $warmupOk = $this->warmupDevice($device, $campaign->devices->where('id', '!=', $device->id));
 
-                    if ($peerDevice) {
-                        $warmupOk = $this->performWarmupExchange($device, $peerDevice);
+                    if (!$warmupOk) {
+                        $warmupOk = $this->warmupDevice($device, Device::where('status', 'open')
+                            ->where('id', '!=', $device->id)
+                            ->get());
+                    }
 
-                        if (!$warmupOk) {
-                            echo "Falha ao aquecer device {$device->id} com peer {$peerDevice->id}.<br>";
-                            continue;
-                        }
-
-                        echo "Device {$device->id} aquecido com sucesso usando peer {$peerDevice->id}.<br>";
-                    } else {
-                        echo "Nenhum peer disponível para aquecer device {$device->id}.<br>";
+                    if (!$warmupOk) {
+                        echo "Falha ao aquecer device {$device->id}, pulando envio.<br>";
                         continue;
                     }
                 }
@@ -231,7 +234,7 @@ class CronController extends Controller
 
                 $sendOk = $this->sendImage($device->session, $contact->phone, $imagem, $texto);
 
-                if ($sendOk) {
+                    if ($sendOk) {
                     // Atualiza o updated_at do device apenas quando a API confirmou aceitação
                     $device->touch();
 
@@ -341,24 +344,24 @@ class CronController extends Controller
         Cache::put("device_warmed:{$device->id}", true, now()->addMinutes(60));
     }
 
-    private function findWarmupPeerDevice(Device $device, $devices)
+    private function warmupDevice(Device $device, $devices)
     {
-        $peer = $devices->firstWhere('status', 'open');
+        $peer = $devices->first(function ($candidate) {
+            return $this->formatWarmupRecipient($candidate->jid) !== null;
+        });
 
-        if ($peer && $peer->jid) {
-            return $peer;
+        if (!$peer) {
+            return false;
         }
 
-        return Device::where('status', 'open')
-            ->whereNotNull('jid')
-            ->where('id', '!=', $device->id)
-            ->first();
-    }
+        $senderRecipient = $this->formatWarmupRecipient($device->jid);
+        $peerRecipient = $this->formatWarmupRecipient($peer->jid);
 
-    private function performWarmupExchange(Device $sender, Device $recipient)
-    {
-        if (empty($sender->jid) || empty($recipient->jid)) {
-            Log::warning("Warmup ignorado: falta JID em sender {$sender->id} ou recipient {$recipient->id}");
+        if (!$senderRecipient || !$peerRecipient) {
+            Log::warning("Warmup ignorado: JID inválido em sender {$device->id} ou peer {$peer->id}", [
+                'sender_jid' => $device->jid,
+                'peer_jid' => $peer->jid,
+            ]);
             return false;
         }
 
@@ -377,32 +380,36 @@ class CronController extends Controller
         $firstText = $warmupMessages[array_rand($warmupMessages)];
         $secondText = $warmupResponses[array_rand($warmupResponses)];
 
-        $sentFirst = $this->sendDeviceText($sender->session, $recipient->jid, $firstText);
+        $sentFirst = $this->sendDeviceText($device->session, $peerRecipient, $firstText);
         if (!$sentFirst) {
+            Log::warning("Warmup falhou no primeiro envio", ['sender_id' => $device->id, 'peer_id' => $peer->id]);
             return false;
         }
 
-        $sentSecond = $this->sendDeviceText($recipient->session, $sender->jid, $secondText);
+        $sentSecond = $this->sendDeviceText($peer->session, $senderRecipient, $secondText);
         if (!$sentSecond) {
+            Log::warning("Warmup falhou no segundo envio", ['sender_id' => $device->id, 'peer_id' => $peer->id]);
             return false;
         }
 
-        $this->markDeviceWarmed($sender);
-        $this->markDeviceWarmed($recipient);
+        $this->markDeviceWarmed($device);
+        $this->markDeviceWarmed($peer);
 
+        Log::info("Warmup concluído", ['sender_id' => $device->id, 'peer_id' => $peer->id]);
         return true;
     }
 
     private function sendDeviceText($session, $numberOrJid, $text)
     {
-        $recipient = trim($numberOrJid);
-        if (strpos($recipient, '@') === false) {
-            $recipient = '55' . preg_replace('/[^0-9]/', '', $recipient);
+        $recipient = $this->formatWarmupRecipient($numberOrJid);
+        if (!$recipient) {
+            Log::warning("Warmup descartado: destinatário inválido", ['recipient' => $numberOrJid, 'session' => $session]);
+            return false;
         }
 
         $client = new \GuzzleHttp\Client([
-            'timeout' => 15,
-            'connect_timeout' => 10,
+            'timeout' => 8,
+            'connect_timeout' => 3,
             'http_errors' => false,
         ]);
         $url = rtrim((string) env('APP_URL_ZAP'), '/') . "/message/sendText/{$session}";
@@ -433,6 +440,35 @@ class CronController extends Controller
             Log::error("Erro ao enviar warmup para {$recipient}", ['session' => $session, 'erro' => $e->getMessage()]);
             return false;
         }
+    }
+
+    private function formatWarmupRecipient($numberOrJid)
+    {
+        $recipient = trim((string) $numberOrJid);
+
+        if (empty($recipient)) {
+            return null;
+        }
+
+        if (strpos($recipient, '@') !== false) {
+            return $recipient;
+        }
+
+        $digits = preg_replace('/[^0-9]/', '', $recipient);
+        if (strlen($digits) < 10 || strlen($digits) > 15) {
+            return null;
+        }
+
+        if (!str_starts_with($digits, '55')) {
+            $digits = '55' . $digits;
+        }
+
+        // Exige número no formato internacional com 11 a 13 dígitos após 55
+        if (strlen($digits) < 12 || strlen($digits) > 15) {
+            return null;
+        }
+
+        return $digits;
     }
 
     public function verificarMensagensPendentes()

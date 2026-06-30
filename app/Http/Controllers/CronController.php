@@ -178,6 +178,7 @@ class CronController extends Controller
                     // Verifica quanto tempo passou desde o último envio
                     $lastUpdate = Carbon::parse($device->updated_at);
                     $now = Carbon::now();
+                    dd($now);
                     $diffInSeconds = $now->diffInSeconds($lastUpdate);
 
                     // Se já passou o tempo do intervalo aleatório, adiciona ao array

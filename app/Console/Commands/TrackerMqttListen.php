@@ -30,12 +30,20 @@ class TrackerMqttListen extends Command
     {
         $host = (string) config('mqtt.host', '127.0.0.1');
         $port = (int) config('mqtt.port', 1883);
-        $username = config('mqtt.username');
-        $password = config('mqtt.password');
-        $clientId = (string) config('mqtt.client_id', 'ruangas-listener');
-        $topic = (string) ($this->option('topic') ?: config('mqtt.topic', 'tracker/#'));
+        $username = $this->normalizeOptionalString(config('mqtt.username'));
+        $password = $this->normalizeOptionalString(config('mqtt.password'));
+        $clientId = trim((string) config('mqtt.client_id', 'ruangas-listener'));
+        $topic = trim((string) ($this->option('topic') ?: config('mqtt.topic', 'tracker/#')));
         $qos = (int) config('mqtt.qos', 1);
         $useTls = (bool) config('mqtt.tls', false);
+
+        if ($topic === '') {
+            $topic = 'tracker/#';
+        }
+
+        if ($clientId === '') {
+            $clientId = 'ruangas-listener';
+        }
 
         $this->info("Conectando no broker MQTT {$host}:{$port}...");
         $this->info("Topico: {$topic}");
@@ -44,12 +52,18 @@ class TrackerMqttListen extends Command
             $client = new MqttClient($host, $port, $clientId);
 
             $settings = (new ConnectionSettings())
-                ->setUsername($username)
-                ->setPassword($password)
                 ->setUseTls($useTls)
                 ->setConnectTimeout((int) config('mqtt.connect_timeout', 10))
                 ->setSocketTimeout((int) config('mqtt.socket_timeout', 5))
                 ->setKeepAliveInterval((int) config('mqtt.keep_alive_interval', 60));
+
+            if ($username !== null) {
+                $settings = $settings->setUsername($username);
+            }
+
+            if ($password !== null) {
+                $settings = $settings->setPassword($password);
+            }
 
             $client->connect($settings, true);
 
@@ -66,5 +80,15 @@ class TrackerMqttListen extends Command
             $this->error('Falha no MQTT listener: ' . $e->getMessage());
             return self::FAILURE;
         }
+    }
+
+    private function normalizeOptionalString($value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $normalized = trim((string) $value);
+        return $normalized === '' ? null : $normalized;
     }
 }

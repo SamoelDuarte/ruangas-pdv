@@ -25,6 +25,7 @@ use App\Http\Controllers\MenssageController;
 use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\WebhookController;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 /*
 |--------------------------------------------------------------------------
@@ -57,6 +58,26 @@ Route::post('/webhook', [WebhookController::class, 'evento'])->withoutMiddleware
 ]);
 
 Route::post('/envent', [WebhookController::class, 'envent'])->withoutMiddleware([
+    \App\Http\Middleware\VerifyCsrfToken::class,
+    \App\Http\Middleware\Authenticate::class,
+]);
+
+Route::any('/webhook/rasteramento', function (Request $request) {
+    Log::info('Webhook rasteramento recebido', [
+        'method' => $request->method(),
+        'url' => $request->fullUrl(),
+        'ip' => $request->ip(),
+        'headers' => $request->headers->all(),
+        'query' => $request->query(),
+        'payload_json' => $request->all(),
+        'payload_raw' => $request->getContent(),
+    ]);
+
+    return response()->json([
+        'status' => 'ok',
+        'message' => 'Webhook recebido com sucesso',
+    ]);
+})->withoutMiddleware([
     \App\Http\Middleware\VerifyCsrfToken::class,
     \App\Http\Middleware\Authenticate::class,
 ]);

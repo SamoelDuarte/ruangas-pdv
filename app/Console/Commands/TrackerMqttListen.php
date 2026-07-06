@@ -3,7 +3,6 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Log;
 use PhpMqtt\Client\ConnectionSettings;
 use PhpMqtt\Client\MqttClient;
 use Throwable;
@@ -22,7 +21,7 @@ class TrackerMqttListen extends Command
      *
      * @var string
      */
-    protected $description = 'Escuta mensagens MQTT do rastreador e grava tudo em log';
+    protected $description = 'Escuta mensagens MQTT do rastreador e mostra na tela';
 
     /**
      * Execute the console command.
@@ -55,38 +54,15 @@ class TrackerMqttListen extends Command
             $client->connect($settings, true);
 
             $client->subscribe($topic, function (string $topicName, string $message, bool $retained) {
-                $decoded = json_decode($message, true);
-
-                $logPayload = [
-                    'topic' => $topicName,
-                    'retained' => $retained,
-                    'payload_raw' => $message,
-                    'payload_json' => json_last_error() === JSON_ERROR_NONE ? $decoded : null,
-                    'received_at' => now()->toDateTimeString(),
-                ];
-
-                Log::info('MQTT rastreador recebido', $logPayload);
-
-                $this->line('[' . now()->format('H:i:s') . "] {$topicName} => {$message}");
+                $retainedTag = $retained ? ' [retained]' : '';
+                $this->line('[' . now()->format('H:i:s') . "] {$topicName}{$retainedTag} => {$message}");
             }, $qos);
-
-            Log::info('MQTT listener iniciado', [
-                'host' => $host,
-                'port' => $port,
-                'topic' => $topic,
-                'qos' => $qos,
-                'tls' => $useTls,
-            ]);
 
             $this->info('Escuta MQTT iniciada. Pressione CTRL+C para parar.');
 
             $client->loop(true);
             return self::SUCCESS;
         } catch (Throwable $e) {
-            Log::error('Erro ao iniciar listener MQTT', [
-                'erro' => $e->getMessage(),
-            ]);
-
             $this->error('Falha no MQTT listener: ' . $e->getMessage());
             return self::FAILURE;
         }

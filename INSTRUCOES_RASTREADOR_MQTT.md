@@ -4,7 +4,7 @@
 
 1. Webhook aberto para debug:
    - `https://2.25.205.114/webhook/rasteramento`
-2. Listener MQTT no Laravel para receber e logar tudo.
+2. Listener MQTT no Laravel para receber e mostrar na tela.
 
 ## 2) IP e porta (resposta direta)
 
@@ -43,13 +43,9 @@ No PowerShell, dentro do projeto:
 php artisan tracker:mqtt-listen
 ```
 
-Esse comando mostra na tela e salva no log tudo que chegar via MQTT.
+Esse comando mostra na tela tudo que chegar via MQTT.
 
-Para ver log em tempo real:
-
-```powershell
-Get-Content .\storage\logs\laravel.log -Wait
-```
+Neste momento ele esta em modo monitoramento, sem salvar mensagens.
 
 ## 5) Teste rapido do webhook HTTP
 

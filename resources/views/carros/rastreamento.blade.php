@@ -73,6 +73,43 @@
         outline: none;
     }
 
+    .tracker-marker-wrap {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        transform: translateY(-8px);
+    }
+
+    .tracker-marker-plate {
+        background: #111;
+        color: #fff;
+        border-radius: 8px;
+        padding: 2px 7px;
+        font-size: 10px;
+        font-weight: 700;
+        line-height: 1;
+        margin-bottom: 3px;
+        border: 1px solid rgba(255, 255, 255, 0.8);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+        white-space: nowrap;
+        max-width: 110px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .tracker-marker-car {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 2px solid #fff;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+        color: #fff;
+        font-size: 14px;
+    }
+
     @media (max-width: 991px) {
         .tracker-bottom-panel {
             left: 8px;
@@ -331,6 +368,61 @@
         return 'badge bg-dark';
     }
 
+    function corDoMarcador(row) {
+        const permanencia = parseInt(row.permanencia_segundos || 0, 10);
+
+        if (row.status === 'Em movimento') {
+            return '#6f2cff'; // roxo
+        }
+
+        if (row.status === 'Parado ign desligado') {
+            return permanencia >= 1800 ? '#b00020' : '#ff6b6b'; // vermelho forte/fraco
+        }
+
+        if (row.status === 'Parado ign ligado' || row.status === 'Parado') {
+            return '#111111'; // preto
+        }
+
+        return '#111111';
+    }
+
+    function textoPlacaMarker(row) {
+        if (row.placa && row.placa.trim() !== '') {
+            return row.placa.trim();
+        }
+
+        if (row.imei && row.imei.length >= 4) {
+            return `IMEI ${row.imei.slice(-4)}`;
+        }
+
+        return 'SEM PLACA';
+    }
+
+    function construirIconeCarro(row) {
+        const cor = corDoMarcador(row);
+        const placa = textoPlacaMarker(row)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+
+        const html = `
+            <div class="tracker-marker-wrap">
+                <div class="tracker-marker-plate">${placa}</div>
+                <div class="tracker-marker-car" style="background:${cor};">
+                    <i class="fas fa-car-side"></i>
+                </div>
+            </div>
+        `;
+
+        return L.divIcon({
+            className: 'tracker-car-icon',
+            html,
+            iconSize: [90, 48],
+            iconAnchor: [45, 42],
+            popupAnchor: [0, -34],
+        });
+    }
+
     function atualizarMarcadores(rows) {
         const bounds = [];
 
@@ -352,11 +444,14 @@
                 GPS: ${formatarData(row.gps_em)}
             `;
 
+            const icone = construirIconeCarro(row);
+
             if (marcadores[imei]) {
                 marcadores[imei].setLatLng([lat, lng]);
                 marcadores[imei].setPopupContent(popup);
+                marcadores[imei].setIcon(icone);
             } else {
-                marcadores[imei] = L.marker([lat, lng]).addTo(mapa).bindPopup(popup);
+                marcadores[imei] = L.marker([lat, lng], { icon: icone }).addTo(mapa).bindPopup(popup);
             }
 
             bounds.push([lat, lng]);

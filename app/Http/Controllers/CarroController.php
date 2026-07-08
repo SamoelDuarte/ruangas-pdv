@@ -238,6 +238,13 @@ class CarroController extends Controller
             ];
         }
 
+        usort($rows, function (array $left, array $right) {
+            $leftTime = $left['recebido_em'] ?? '';
+            $rightTime = $right['recebido_em'] ?? '';
+
+            return strcmp($rightTime, $leftTime);
+        });
+
         return response()->json([
             'rows' => $rows,
             'updated_at' => now()->toDateTimeString(),

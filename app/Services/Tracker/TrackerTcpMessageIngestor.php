@@ -19,10 +19,6 @@ class TrackerTcpMessageIngestor
             return null;
         }
 
-        if ($this->shouldIgnorePacketType($parsed['packet_type'] ?? null)) {
-            return null;
-        }
-
         $carro = Carro::where('imei_rastreador', $parsed['imei'])->first();
         $stay = TrackerAddressStay::where('imei', $parsed['imei'])->latest('id')->first();
 
@@ -59,6 +55,8 @@ class TrackerTcpMessageIngestor
             'longitude' => $parsed['longitude'],
             'altitude' => $parsed['altitude'],
             'speed' => $parsed['speed'],
+            'tensao_bateria' => $parsed['tensao_bateria'],
+            'tensao_veiculo' => $parsed['tensao_veiculo'],
             'ignition' => $parsed['ignition'],
             'in_motion' => $parsed['in_motion'],
             'address_line' => $addressLine,
@@ -109,10 +107,12 @@ class TrackerTcpMessageIngestor
         $speed = null;
         $gpsAt = null;
         $battery = null;
+        $tensaoBateria = null;
+        $tensaoVeiculo = null;
         $ignition = $this->guessIgnition($packetType, $parts);
         $inMotion = $this->guessMotion($packetType, $parts);
 
-        if (in_array($packetType, ['GTFRI', 'GTERI'], true)) {
+        if ($packetType === 'GTFRI') {
             $speed = $this->toFloat($parts[8] ?? null);
             $altitude = $this->toFloat($parts[10] ?? null);
             $longitude = $this->toFloat($parts[11] ?? null);
@@ -120,11 +120,13 @@ class TrackerTcpMessageIngestor
             $gpsAt = $this->parseTrackerDate($parts[13] ?? null);
             $battery = $this->toFloat($parts[20] ?? null);
         } elseif ($packetType === 'GTINF') {
-            $battery = $this->toFloat($parts[12] ?? null);
+            $tensaoVeiculoRaw = $this->toFloat($parts[9] ?? null);
+            if ($tensaoVeiculoRaw !== null) {
+                $tensaoVeiculo = $tensaoVeiculoRaw > 100 ? $tensaoVeiculoRaw / 1000 : $tensaoVeiculoRaw;
+            }
+
+            $tensaoBateria = $this->toFloat($parts[11] ?? null);
             $gpsAt = $this->parseTrackerDate($parts[17] ?? null) ?: $this->parseTrackerDate($parts[27] ?? null);
-        } elseif ($this->packetCarriesGps($packetType)) {
-            [$longitude, $latitude] = $this->findCoordinates($parts);
-            $gpsAt = $this->findDateInParts($parts);
         }
 
         if ($inMotion === null && $speed !== null) {
@@ -145,6 +147,8 @@ class TrackerTcpMessageIngestor
             'gps_at' => $gpsAt,
             'ignition' => $ignition,
             'in_motion' => $inMotion,
+            'tensao_bateria' => $tensaoBateria,
+            'tensao_veiculo' => $tensaoVeiculo,
             'battery' => $battery,
             'part_count' => count($parts),
         ];
@@ -351,26 +355,6 @@ class TrackerTcpMessageIngestor
     private function normalizeAddress(string $address): string
     {
         return mb_strtolower(trim(preg_replace('/\s+/', ' ', $address)));
-    }
-
-    private function shouldIgnorePacketType(?string $packetType): bool
-    {
-        $normalized = strtoupper(trim((string) $packetType));
-        if ($normalized === '') {
-            return false;
-        }
-
-        return in_array($normalized, (array) config('tracker_tcp.ignore_packet_types', ['GTINF']), true);
-    }
-
-    private function packetCarriesGps(?string $packetType): bool
-    {
-        $normalized = strtoupper(trim((string) $packetType));
-        if ($normalized === '') {
-            return false;
-        }
-
-        return in_array($normalized, (array) config('tracker_tcp.gps_packet_types', ['GTFRI', 'GTERI']), true);
     }
 
     private function toFloat($value): ?float

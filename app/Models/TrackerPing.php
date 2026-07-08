@@ -22,6 +22,8 @@ class TrackerPing extends Model
         'longitude',
         'altitude',
         'speed',
+        'tensao_bateria',
+        'tensao_veiculo',
         'ignition',
         'in_motion',
         'address_line',
@@ -37,6 +39,8 @@ class TrackerPing extends Model
         'metadata' => 'array',
         'ignition' => 'boolean',
         'in_motion' => 'boolean',
+        'tensao_bateria' => 'float',
+        'tensao_veiculo' => 'float',
     ];
 
     public function carro()

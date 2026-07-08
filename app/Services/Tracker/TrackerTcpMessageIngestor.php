@@ -152,7 +152,7 @@ class TrackerTcpMessageIngestor
 
         $lat = round($latitude, 5);
         $lng = round($longitude, 5);
-        $cacheKey = "tracker_geocode_{$lat}_{$lng}";
+        $cacheKey = "tracker_geocode_v2_{$lat}_{$lng}";
 
         $cached = Cache::get($cacheKey);
         if (is_string($cached) && $cached !== '') {
@@ -175,14 +175,53 @@ class TrackerTcpMessageIngestor
             return [null, null];
         }
 
-        $displayName = trim((string) data_get($response->json(), 'display_name', ''));
-        if ($displayName === '') {
+        $shortAddress = $this->extractStreetAndNumber($response->json());
+        if ($shortAddress === null) {
             return [null, null];
         }
 
-        Cache::put($cacheKey, $displayName, now()->addDays(30));
+        Cache::put($cacheKey, $shortAddress, now()->addDays(30));
 
-        return [$displayName, 'nominatim'];
+        return [$shortAddress, 'nominatim'];
+    }
+
+    private function extractStreetAndNumber(array $json): ?string
+    {
+        $address = data_get($json, 'address', []);
+        if (!is_array($address)) {
+            return null;
+        }
+
+        $street = $this->firstNonEmptyString([
+            data_get($address, 'road'),
+            data_get($address, 'pedestrian'),
+            data_get($address, 'residential'),
+            data_get($address, 'path'),
+            data_get($address, 'footway'),
+        ]);
+
+        if ($street === null) {
+            return null;
+        }
+
+        $houseNumber = $this->firstNonEmptyString([
+            data_get($address, 'house_number'),
+            data_get($address, 'housenumber'),
+        ]);
+
+        return $houseNumber !== null ? "{$street}, {$houseNumber}" : $street;
+    }
+
+    private function firstNonEmptyString(array $values): ?string
+    {
+        foreach ($values as $value) {
+            $normalized = trim((string) $value);
+            if ($normalized !== '') {
+                return $normalized;
+            }
+        }
+
+        return null;
     }
 
     private function upsertAddressStay(

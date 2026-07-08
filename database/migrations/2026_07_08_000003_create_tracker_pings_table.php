@@ -27,7 +27,7 @@ return new class extends Migration
             $table->text('address_line')->nullable();
             $table->string('geocode_source', 40)->nullable();
             $table->timestamp('gps_at')->nullable()->index();
-            $table->timestamp('received_at')->index();
+            $table->timestamp('received_at')->useCurrent()->index();
             $table->json('metadata')->nullable();
             $table->timestamps();
 

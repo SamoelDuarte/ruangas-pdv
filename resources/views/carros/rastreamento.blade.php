@@ -375,8 +375,13 @@
             return '#6f2cff'; // roxo
         }
 
+        // Qualquer veiculo parado por 10+ min deve ficar vermelho.
+        if (permanencia >= 600) {
+            return '#b00020'; // vermelho forte
+        }
+
         if (row.status === 'Parado ign desligado') {
-            return permanencia >= 1800 ? '#b00020' : '#ff6b6b'; // vermelho forte/fraco
+            return '#ff6b6b'; // vermelho fraco
         }
 
         if (row.status === 'Parado ign ligado' || row.status === 'Parado') {

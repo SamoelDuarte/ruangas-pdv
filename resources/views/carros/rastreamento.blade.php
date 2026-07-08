@@ -177,13 +177,12 @@
                             <th>Chegada</th>
                             <th>Saida</th>
                             <th>Permanencia</th>
-                            <th>Pacote</th>
                             <th>Ultimo Ping</th>
                         </tr>
                     </thead>
                     <tbody id="tbodyRastreamento">
                         <tr>
-                            <td colspan="15" class="text-center py-4 text-muted">Carregando dados de rastreamento...</td>
+                            <td colspan="14" class="text-center py-4 text-muted">Carregando dados de rastreamento...</td>
                         </tr>
                     </tbody>
                 </table>
@@ -472,7 +471,7 @@
         const tbody = document.getElementById('tbodyRastreamento');
 
         if (!rows.length) {
-            tbody.innerHTML = '<tr><td colspan="15" class="text-center py-4 text-muted">Sem dados de rastreamento ainda.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="14" class="text-center py-4 text-muted">Sem dados de rastreamento ainda.</td></tr>';
             return;
         }
 
@@ -494,7 +493,6 @@
                     <td>${formatarData(row.chegada_endereco)}</td>
                     <td>${formatarData(row.saida_endereco)}</td>
                     <td>${formatarDuracao(row.permanencia_segundos)}</td>
-                    <td>${row.tipo_pacote || '-'}</td>
                     <td>${formatarData(row.recebido_em)}</td>
                 </tr>
             `;

@@ -19,9 +19,7 @@ class TrackerTcpMessageIngestor
             return null;
         }
 
-        // GTINF traz status do terminal, sem coordenadas de rastreamento.
-        // Ignoramos para manter a trilha limpa e focada em pacotes de posicao/evento.
-        if (($parsed['packet_type'] ?? null) === 'GTINF') {
+        if ($this->shouldIgnorePacketType($parsed['packet_type'] ?? null)) {
             return null;
         }
 
@@ -124,7 +122,7 @@ class TrackerTcpMessageIngestor
         } elseif ($packetType === 'GTINF') {
             $battery = $this->toFloat($parts[12] ?? null);
             $gpsAt = $this->parseTrackerDate($parts[17] ?? null) ?: $this->parseTrackerDate($parts[27] ?? null);
-        } else {
+        } elseif ($this->packetCarriesGps($packetType)) {
             [$longitude, $latitude] = $this->findCoordinates($parts);
             $gpsAt = $this->findDateInParts($parts);
         }
@@ -353,6 +351,26 @@ class TrackerTcpMessageIngestor
     private function normalizeAddress(string $address): string
     {
         return mb_strtolower(trim(preg_replace('/\s+/', ' ', $address)));
+    }
+
+    private function shouldIgnorePacketType(?string $packetType): bool
+    {
+        $normalized = strtoupper(trim((string) $packetType));
+        if ($normalized === '') {
+            return false;
+        }
+
+        return in_array($normalized, (array) config('tracker_tcp.ignore_packet_types', ['GTINF']), true);
+    }
+
+    private function packetCarriesGps(?string $packetType): bool
+    {
+        $normalized = strtoupper(trim((string) $packetType));
+        if ($normalized === '') {
+            return false;
+        }
+
+        return in_array($normalized, (array) config('tracker_tcp.gps_packet_types', ['GTFRI', 'GTERI']), true);
     }
 
     private function toFloat($value): ?float

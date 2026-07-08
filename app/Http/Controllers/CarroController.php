@@ -153,21 +153,34 @@ class CarroController extends Controller
 
         $latestPings = TrackerPing::whereIn('id', $latestPingIds)
             ->orderByDesc('received_at')
-            ->get()
-            ->keyBy('imei');
+            ->get();
 
         $latestStayIds = TrackerAddressStay::selectRaw('MAX(id) as id')
             ->groupBy('imei');
 
         $latestStays = TrackerAddressStay::whereIn('id', $latestStayIds)
-            ->get()
-            ->keyBy('imei');
+            ->get();
+
+        $latestPingsByImei = $latestPings->mapWithKeys(function (TrackerPing $ping) {
+            return [$this->normalizeImei($ping->imei) => $ping];
+        });
+
+        $latestStaysByImei = $latestStays->mapWithKeys(function (TrackerAddressStay $stay) {
+            return [$this->normalizeImei($stay->imei) => $stay];
+        });
+
+        $carrosByImei = $carros
+            ->filter(fn (Carro $carro) => !empty($carro->imei_rastreador))
+            ->mapWithKeys(function (Carro $carro) {
+                return [$this->normalizeImei((string) $carro->imei_rastreador) => $carro];
+            });
 
         $rows = [];
 
         foreach ($carros as $carro) {
-            $ping = $carro->imei_rastreador ? $latestPings->get($carro->imei_rastreador) : null;
-            $stay = $carro->imei_rastreador ? $latestStays->get($carro->imei_rastreador) : null;
+            $imeiNormalizado = $this->normalizeImei((string) ($carro->imei_rastreador ?? ''));
+            $ping = $imeiNormalizado !== '' ? $latestPingsByImei->get($imeiNormalizado) : null;
+            $stay = $imeiNormalizado !== '' ? $latestStaysByImei->get($imeiNormalizado) : null;
 
             $rows[] = [
                 'carro_id' => $carro->id,
@@ -194,19 +207,19 @@ class CarroController extends Controller
         }
 
         // Inclui IMEIs sem carro vinculado para facilitar a associação inicial.
-        foreach ($latestPings as $imei => $ping) {
-            if ($carros->contains(fn (Carro $carro) => $carro->imei_rastreador === $imei)) {
+        foreach ($latestPingsByImei as $imeiNormalizado => $ping) {
+            if ($carrosByImei->has($imeiNormalizado)) {
                 continue;
             }
 
-            $stay = $latestStays->get($imei);
+            $stay = $latestStaysByImei->get($imeiNormalizado);
 
             $rows[] = [
                 'carro_id' => null,
                 'nome' => 'Rastreador nao vinculado',
                 'placa' => null,
                 'modelo' => null,
-                'imei' => $imei,
+                'imei' => $ping->imei,
                 'status' => $this->resolverStatusVeiculo($ping),
                 'ignicao' => $ping->ignition,
                 'em_movimento' => $ping->in_motion,
@@ -229,6 +242,11 @@ class CarroController extends Controller
             'rows' => $rows,
             'updated_at' => now()->toDateTimeString(),
         ]);
+    }
+
+    private function normalizeImei(string $imei): string
+    {
+        return preg_replace('/\D+/', '', trim($imei)) ?? '';
     }
 
     private function resolverStatusVeiculo(?TrackerPing $ping): string

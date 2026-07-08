@@ -20,24 +20,26 @@ class TrackerTcpMessageIngestor
         }
 
         $carro = Carro::where('imei_rastreador', $parsed['imei'])->first();
+        $stay = TrackerAddressStay::where('imei', $parsed['imei'])->latest('id')->first();
 
         $addressLine = null;
         $geocodeSource = null;
         if ($parsed['latitude'] !== null && $parsed['longitude'] !== null) {
             [$addressLine, $geocodeSource] = $this->reverseGeocode((float) $parsed['latitude'], (float) $parsed['longitude']);
-        }
-
-        $eventTime = $parsed['gps_at'] ?? Carbon::now();
-        $stay = null;
-        if (!empty($addressLine)) {
-            $stay = $this->upsertAddressStay(
-                $parsed['imei'],
-                $carro?->id,
-                $addressLine,
-                $parsed['latitude'],
-                $parsed['longitude'],
-                $eventTime
-            );
+            $eventTime = $parsed['gps_at'] ?? Carbon::now();
+            if (!empty($addressLine)) {
+                $stay = $this->upsertAddressStay(
+                    $parsed['imei'],
+                    $carro?->id,
+                    $addressLine,
+                    $parsed['latitude'],
+                    $parsed['longitude'],
+                    $eventTime
+                );
+            }
+        } elseif ($stay) {
+            $addressLine = $stay->address_line;
+            $geocodeSource = 'last_stay';
         }
 
         return TrackerPing::create([

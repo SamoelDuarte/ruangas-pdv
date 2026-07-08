@@ -19,6 +19,12 @@ class TrackerTcpMessageIngestor
             return null;
         }
 
+        // GTINF traz status do terminal, sem coordenadas de rastreamento.
+        // Ignoramos para manter a trilha limpa e focada em pacotes de posicao/evento.
+        if (($parsed['packet_type'] ?? null) === 'GTINF') {
+            return null;
+        }
+
         $carro = Carro::where('imei_rastreador', $parsed['imei'])->first();
         $stay = TrackerAddressStay::where('imei', $parsed['imei'])->latest('id')->first();
 

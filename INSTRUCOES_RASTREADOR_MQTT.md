@@ -110,3 +110,8 @@ Depois de confirmar que os dados estao chegando, fazemos:
 1. salvar em banco
 2. painel simples com ultima posicao
 3. envio de comandos e confirmacao (ACK)
+
+
+
+
+comando pra startar php artisan tracker:tcp-listen --port=5001

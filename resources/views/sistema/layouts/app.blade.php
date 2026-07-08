@@ -105,8 +105,13 @@
                 @endcan
 
                 @can('gerenciar carros')
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ route('carros.index') }}">Carros</a>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownCarros" role="button"
+                            data-bs-toggle="dropdown" aria-expanded="false">Carros</a>
+                        <ul class="dropdown-menu" aria-labelledby="navbarDropdownCarros">
+                            <li><a class="dropdown-item" href="{{ route('carros.index') }}">Cadastro de Carros</a></li>
+                            <li><a class="dropdown-item" href="{{ route('carros.rastreamento') }}">Rastreamento</a></li>
+                        </ul>
                     </li>
                 @endcan
 

@@ -9,7 +9,12 @@ class Carro extends Model
 {
     use HasFactory;
     
-    protected $fillable = ['nome'];
+    protected $fillable = [
+        'nome',
+        'placa',
+        'modelo',
+        'imei_rastreador',
+    ];
 
     public function abastecimentos()
     {
@@ -19,5 +24,15 @@ class Carro extends Model
     public function trocaOleos()
     {
         return $this->hasMany(TrocaOleo::class);
+    }
+
+    public function trackerPings()
+    {
+        return $this->hasMany(TrackerPing::class);
+    }
+
+    public function trackerAddressStays()
+    {
+        return $this->hasMany(TrackerAddressStay::class);
     }
 }

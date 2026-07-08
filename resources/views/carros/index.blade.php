@@ -43,20 +43,23 @@
                     @if($carros->count() > 0)
                         <div class="list-group" id="listaCarros">
                             @foreach($carros as $carro)
-                            <div class="list-group-item list-group-item-action carro-item" onclick="selecionarCarro({{ $carro->id }}, '{{ $carro->nome }}')">
+                            <div class="list-group-item list-group-item-action carro-item" onclick="selecionarCarro({{ $carro->id }}, @js($carro->nome))">
                                 <div class="d-flex w-100 justify-content-between">
                                     <h6 class="mb-1"><i class="fas fa-car me-2"></i>{{ $carro->nome }}</h6>
                                     <small>{{ $carro->created_at->format('d/m/Y') }}</small>
                                 </div>
+                                <small class="text-muted d-block">
+                                    Placa: {{ $carro->placa ?? '-' }} | Modelo: {{ $carro->modelo ?? '-' }} | IMEI: {{ $carro->imei_rastreador ?? '-' }}
+                                </small>
                                 <div class="btn-group mt-2" role="group">
                                     <button type="button" class="btn btn-sm btn-warning" 
                                             data-bs-toggle="modal" data-bs-target="#carroModal"
-                                            onclick="event.stopPropagation(); editarCarro({{ $carro->id }}, '{{ $carro->nome }}')"
+                                            onclick="event.stopPropagation(); editarCarro({{ $carro->id }}, @js($carro->nome), @js($carro->placa), @js($carro->modelo), @js($carro->imei_rastreador))"
                                             title="Editar">
                                         <i class="fas fa-edit"></i>
                                     </button>
                                     <button type="button" class="btn btn-sm btn-danger" 
-                                            onclick="event.stopPropagation(); confirmarExclusao({{ $carro->id }}, '{{ $carro->nome }}')"
+                                            onclick="event.stopPropagation(); confirmarExclusao({{ $carro->id }}, @js($carro->nome))"
                                             title="Deletar">
                                         <i class="fas fa-trash"></i>
                                     </button>
@@ -142,6 +145,25 @@
                         <input type="text" class="form-control form-control-lg" id="nome" name="nome" 
                                placeholder="Ex: Honda Civic, Toyota Corolla..." required>
                         <div class="form-text">Digite o nome/modelo do carro</div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="placa" class="form-label"><i class="fas fa-id-card me-2"></i>Placa</label>
+                                <input type="text" class="form-control" id="placa" name="placa" placeholder="ABC1D23">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="modelo" class="form-label"><i class="fas fa-car-side me-2"></i>Modelo</label>
+                                <input type="text" class="form-control" id="modelo" name="modelo" placeholder="Ford F100">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="imei_rastreador" class="form-label"><i class="fas fa-satellite-dish me-2"></i>IMEI do Rastreador</label>
+                        <input type="text" class="form-control" id="imei_rastreador" name="imei_rastreador" placeholder="Ex: 866714080417750">
+                        <div class="form-text">Esse IMEI vincula o carro aos pings recebidos no rastreamento.</div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -303,14 +325,20 @@ function limparModal() {
     document.getElementById('carroForm').action = '{{ route("carros.store") }}';
     document.getElementById('method-field').innerHTML = '';
     document.getElementById('nome').value = '';
+    document.getElementById('placa').value = '';
+    document.getElementById('modelo').value = '';
+    document.getElementById('imei_rastreador').value = '';
     document.getElementById('btnSalvar').innerHTML = '<i class="fas fa-save me-1"></i>Salvar Carro';
 }
 
-function editarCarro(id, nome) {
+function editarCarro(id, nome, placa, modelo, imeiRastreador) {
     document.getElementById('carroModalLabel').innerHTML = '<i class="fas fa-edit me-2"></i>Editar Carro';
     document.getElementById('carroForm').action = '/carros/' + id;
     document.getElementById('method-field').innerHTML = '@method("PUT")';
     document.getElementById('nome').value = nome;
+    document.getElementById('placa').value = placa || '';
+    document.getElementById('modelo').value = modelo || '';
+    document.getElementById('imei_rastreador').value = imeiRastreador || '';
     document.getElementById('btnSalvar').innerHTML = '<i class="fas fa-save me-1"></i>Atualizar Carro';
 }
 
@@ -781,12 +809,17 @@ function renderizarListaCarros(carros) {
     let html = '';
     carros.forEach(carro => {
         const dataFormatada = new Date(carro.created_at).toLocaleDateString('pt-BR');
+        const nomeEsc = (carro.nome || '').replace(/'/g, "\\'");
+        const placaEsc = (carro.placa || '').replace(/'/g, "\\'");
+        const modeloEsc = (carro.modelo || '').replace(/'/g, "\\'");
+        const imeiEsc = (carro.imei_rastreador || '').replace(/'/g, "\\'");
         html += `
-            <div class="list-group-item list-group-item-action carro-item" id="carro-${carro.id}" onclick="selecionarCarro(${carro.id}, '${carro.nome}')">
+            <div class="list-group-item list-group-item-action carro-item" id="carro-${carro.id}" onclick="selecionarCarro(${carro.id}, '${nomeEsc}')">
                 <div class="d-flex w-100 justify-content-between align-items-start">
                     <div class="flex-grow-1">
                         <h6 class="mb-1"><i class="fas fa-car me-2"></i>${carro.nome}</h6>
                         <small class="text-muted">Cadastrado: ${dataFormatada}</small>
+                        <small class="text-muted d-block">Placa: ${carro.placa || '-'} | Modelo: ${carro.modelo || '-'} | IMEI: ${carro.imei_rastreador || '-'}</small>
                         <div class="alerta-troca-${carro.id}" style="margin-top: 8px;"></div>
                     </div>
                     <small class="text-muted">Status: <span class="status-${carro.id}">-</span></small>
@@ -794,12 +827,12 @@ function renderizarListaCarros(carros) {
                 <div class="btn-group mt-2" role="group">
                     <button type="button" class="btn btn-sm btn-warning" 
                             data-bs-toggle="modal" data-bs-target="#carroModal"
-                            onclick="event.stopPropagation(); editarCarro(${carro.id}, '${carro.nome}')"
+                            onclick="event.stopPropagation(); editarCarro(${carro.id}, '${nomeEsc}', '${placaEsc}', '${modeloEsc}', '${imeiEsc}')"
                             title="Editar">
                         <i class="fas fa-edit"></i>
                     </button>
                     <button type="button" class="btn btn-sm btn-danger" 
-                            onclick="event.stopPropagation(); confirmarExclusao(${carro.id}, '${carro.nome}')"
+                            onclick="event.stopPropagation(); confirmarExclusao(${carro.id}, '${nomeEsc}')"
                             title="Deletar">
                         <i class="fas fa-trash"></i>
                     </button>

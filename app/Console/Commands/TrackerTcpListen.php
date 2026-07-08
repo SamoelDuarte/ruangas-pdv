@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Services\Tracker\TrackerTcpMessageIngestor;
 use Illuminate\Console\Command;
 use Throwable;
 
@@ -30,6 +31,8 @@ class TrackerTcpListen extends Command
         $port = (int) ($this->option('port') ?: config('tracker_tcp.port', 5001));
         $timeoutSeconds = (int) config('tracker_tcp.client_timeout', 30);
         $maxBytes = (int) config('tracker_tcp.max_bytes_per_read', 4096);
+        $saveMessages = (bool) config('tracker_tcp.save_messages', true);
+        $ingestor = $saveMessages ? app(TrackerTcpMessageIngestor::class) : null;
 
         $bind = "tcp://{$host}:{$port}";
         $errno = 0;
@@ -44,10 +47,13 @@ class TrackerTcpListen extends Command
         stream_set_blocking($server, false);
 
         $this->info("TCP listener ativo em {$bind}");
-        $this->info('Modo monitoramento: sem salvar dados em banco.');
+        $this->info($saveMessages
+            ? 'Modo rastreamento: salvando dados no banco e calculando permanencia por endereco.'
+            : 'Modo monitoramento: sem salvar dados em banco.');
         $this->info('Pressione CTRL+C para parar.');
 
         $clients = [];
+        $buffers = [];
 
         try {
             while (true) {
@@ -69,6 +75,7 @@ class TrackerTcpListen extends Command
                             stream_set_timeout($client, $timeoutSeconds);
                             $id = (int) $client;
                             $clients[$id] = $client;
+                            $buffers[$id] = '';
                             $this->line('[' . now()->format('H:i:s') . "] CONECTOU: {$peer}");
                         }
                         continue;
@@ -88,17 +95,37 @@ class TrackerTcpListen extends Command
                         if (feof($socket)) {
                             fclose($socket);
                             unset($clients[$id]);
+                            unset($buffers[$id]);
                             $this->line('[' . now()->format('H:i:s') . "] DESCONECTOU: {$peer}");
                         }
                         continue;
                     }
 
-                    $clean = trim(preg_replace('/[^\P{C}\n\r\t]/u', '.', $data));
-                    $hex = strtoupper(bin2hex($data));
-                    $hexPreview = strlen($hex) > 200 ? substr($hex, 0, 200) . '...' : $hex;
+                    $buffers[$id] = ($buffers[$id] ?? '') . $data;
 
-                    $this->line('[' . now()->format('H:i:s') . "] {$peer} => {$clean}");
-                    $this->line('HEX: ' . $hexPreview);
+                    while (($end = strpos($buffers[$id], '$')) !== false) {
+                        $frame = substr($buffers[$id], 0, $end + 1);
+                        $buffers[$id] = substr($buffers[$id], $end + 1);
+
+                        $clean = trim(preg_replace('/[^\P{C}\n\r\t]/u', '.', $frame));
+                        if ($clean === '') {
+                            continue;
+                        }
+
+                        $hex = strtoupper(bin2hex($frame));
+                        $hexPreview = strlen($hex) > 200 ? substr($hex, 0, 200) . '...' : $hex;
+
+                        $this->line('[' . now()->format('H:i:s') . "] {$peer} => {$clean}");
+                        $this->line('HEX: ' . $hexPreview);
+
+                        if ($ingestor !== null) {
+                            try {
+                                $ingestor->ingest($clean, $peer);
+                            } catch (Throwable $exception) {
+                                $this->warn('Falha ao salvar frame: ' . $exception->getMessage());
+                            }
+                        }
+                    }
                 }
             }
         } catch (Throwable $e) {

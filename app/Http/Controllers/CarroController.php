@@ -148,12 +148,24 @@ class CarroController extends Controller
     {
         $carros = Carro::orderBy('nome')->get(['id', 'nome', 'placa', 'modelo', 'imei_rastreador']);
 
-        $latestPingIds = TrackerPing::selectRaw('MAX(id) as id')
+        $latestAnyIds = TrackerPing::selectRaw('MAX(id) as id')
             ->groupBy('imei');
 
-        $latestPings = TrackerPing::whereIn('id', $latestPingIds)
-            ->orderByDesc('received_at')
-            ->get();
+        $latestAny = TrackerPing::whereIn('id', $latestAnyIds)->get();
+
+        $latestFriIds = TrackerPing::where('packet_type', 'GTFRI')
+            ->whereNotNull('latitude')
+            ->whereNotNull('longitude')
+            ->selectRaw('MAX(id) as id')
+            ->groupBy('imei');
+
+        $latestFri = TrackerPing::whereIn('id', $latestFriIds)->get();
+
+        $latestInfIds = TrackerPing::where('packet_type', 'GTINF')
+            ->selectRaw('MAX(id) as id')
+            ->groupBy('imei');
+
+        $latestInf = TrackerPing::whereIn('id', $latestInfIds)->get();
 
         $latestStayIds = TrackerAddressStay::selectRaw('MAX(id) as id')
             ->groupBy('imei');
@@ -161,7 +173,15 @@ class CarroController extends Controller
         $latestStays = TrackerAddressStay::whereIn('id', $latestStayIds)
             ->get();
 
-        $latestPingsByImei = $latestPings->mapWithKeys(function (TrackerPing $ping) {
+        $latestAnyByImei = $latestAny->mapWithKeys(function (TrackerPing $ping) {
+            return [$this->normalizeImei($ping->imei) => $ping];
+        });
+
+        $latestFriByImei = $latestFri->mapWithKeys(function (TrackerPing $ping) {
+            return [$this->normalizeImei($ping->imei) => $ping];
+        });
+
+        $latestInfByImei = $latestInf->mapWithKeys(function (TrackerPing $ping) {
             return [$this->normalizeImei($ping->imei) => $ping];
         });
 
@@ -179,8 +199,15 @@ class CarroController extends Controller
 
         foreach ($carros as $carro) {
             $imeiNormalizado = $this->normalizeImei((string) ($carro->imei_rastreador ?? ''));
-            $ping = $imeiNormalizado !== '' ? $latestPingsByImei->get($imeiNormalizado) : null;
+            $pingAny = $imeiNormalizado !== '' ? $latestAnyByImei->get($imeiNormalizado) : null;
+            $pingFri = $imeiNormalizado !== '' ? $latestFriByImei->get($imeiNormalizado) : null;
+            $pingInf = $imeiNormalizado !== '' ? $latestInfByImei->get($imeiNormalizado) : null;
             $stay = $imeiNormalizado !== '' ? $latestStaysByImei->get($imeiNormalizado) : null;
+
+            $ignicao = $pingInf?->ignition ?? $pingAny?->ignition;
+            $velocidade = $pingFri?->speed ?? $pingAny?->speed;
+            $emMovimento = $pingAny?->in_motion;
+            $status = $this->resolverStatusComposto($ignicao, $emMovimento, $velocidade);
 
             $rows[] = [
                 'carro_id' => $carro->id,
@@ -188,53 +215,60 @@ class CarroController extends Controller
                 'placa' => $carro->placa,
                 'modelo' => $carro->modelo,
                 'imei' => $carro->imei_rastreador,
-                'status' => $this->resolverStatusVeiculo($ping),
-                'ignicao' => $ping?->ignition,
-                'em_movimento' => $ping?->in_motion,
-                'velocidade' => $ping?->speed,
-                'tensao_veiculo' => $ping?->tensao_veiculo,
-                'latitude' => $ping?->latitude ?? $stay?->latitude,
-                'longitude' => $ping?->longitude ?? $stay?->longitude,
-                'endereco' => $stay?->address_line ?? $ping?->address_line,
+                'status' => $status,
+                'ignicao' => $ignicao,
+                'em_movimento' => $emMovimento,
+                'velocidade' => $velocidade,
+                'tensao_veiculo' => $pingInf?->tensao_veiculo ?? $pingAny?->tensao_veiculo,
+                'latitude' => $pingFri?->latitude,
+                'longitude' => $pingFri?->longitude,
+                'endereco' => $stay?->address_line ?? $pingFri?->address_line,
                 'chegada_endereco' => optional($stay?->arrived_at)->toDateTimeString(),
                 'saida_endereco' => optional($stay?->left_at)->toDateTimeString(),
                 'permanencia_segundos' => $stay?->permanence_seconds ?? 0,
-                'tipo_pacote' => $ping?->packet_type,
-                'ultima_msg' => $ping?->raw_message,
-                'recebido_em' => optional($ping?->received_at)->toDateTimeString(),
-                'gps_em' => optional($ping?->gps_at)->toDateTimeString(),
+                'tipo_pacote' => $pingAny?->packet_type,
+                'ultima_msg' => $pingAny?->raw_message,
+                'recebido_em' => optional($pingAny?->received_at)->toDateTimeString(),
+                'gps_em' => optional($pingFri?->gps_at)->toDateTimeString(),
             ];
         }
 
         // Inclui IMEIs sem carro vinculado para facilitar a associação inicial.
-        foreach ($latestPingsByImei as $imeiNormalizado => $ping) {
+        foreach ($latestAnyByImei as $imeiNormalizado => $pingAny) {
             if ($carrosByImei->has($imeiNormalizado)) {
                 continue;
             }
 
+            $pingFri = $latestFriByImei->get($imeiNormalizado);
+            $pingInf = $latestInfByImei->get($imeiNormalizado);
             $stay = $latestStaysByImei->get($imeiNormalizado);
+
+            $ignicao = $pingInf?->ignition ?? $pingAny->ignition;
+            $velocidade = $pingFri?->speed ?? $pingAny->speed;
+            $emMovimento = $pingAny->in_motion;
+            $status = $this->resolverStatusComposto($ignicao, $emMovimento, $velocidade);
 
             $rows[] = [
                 'carro_id' => null,
                 'nome' => 'Rastreador nao vinculado',
                 'placa' => null,
                 'modelo' => null,
-                'imei' => $ping->imei,
-                'status' => $this->resolverStatusVeiculo($ping),
-                'ignicao' => $ping->ignition,
-                'em_movimento' => $ping->in_motion,
-                'velocidade' => $ping->speed,
-                'tensao_veiculo' => $ping->tensao_veiculo,
-                'latitude' => $ping->latitude ?? $stay?->latitude,
-                'longitude' => $ping->longitude ?? $stay?->longitude,
-                'endereco' => $stay?->address_line ?? $ping->address_line,
+                'imei' => $pingAny->imei,
+                'status' => $status,
+                'ignicao' => $ignicao,
+                'em_movimento' => $emMovimento,
+                'velocidade' => $velocidade,
+                'tensao_veiculo' => $pingInf?->tensao_veiculo ?? $pingAny->tensao_veiculo,
+                'latitude' => $pingFri?->latitude,
+                'longitude' => $pingFri?->longitude,
+                'endereco' => $stay?->address_line ?? $pingFri?->address_line,
                 'chegada_endereco' => optional($stay?->arrived_at)->toDateTimeString(),
                 'saida_endereco' => optional($stay?->left_at)->toDateTimeString(),
                 'permanencia_segundos' => $stay?->permanence_seconds ?? 0,
-                'tipo_pacote' => $ping->packet_type,
-                'ultima_msg' => $ping->raw_message,
-                'recebido_em' => optional($ping->received_at)->toDateTimeString(),
-                'gps_em' => optional($ping->gps_at)->toDateTimeString(),
+                'tipo_pacote' => $pingAny->packet_type,
+                'ultima_msg' => $pingAny->raw_message,
+                'recebido_em' => optional($pingAny->received_at)->toDateTimeString(),
+                'gps_em' => optional($pingFri?->gps_at)->toDateTimeString(),
             ];
         }
 
@@ -256,23 +290,23 @@ class CarroController extends Controller
         return preg_replace('/\D+/', '', trim($imei)) ?? '';
     }
 
-    private function resolverStatusVeiculo(?TrackerPing $ping): string
+    private function resolverStatusComposto($ignicao, $emMovimento, $velocidade): string
     {
-        if (!$ping) {
+        if ($ignicao === null && $emMovimento === null && $velocidade === null) {
             return 'Sem dados';
         }
 
-        $speed = (float) ($ping->speed ?? 0);
+        $speed = (float) ($velocidade ?? 0);
 
-        if ($ping->in_motion === true || $speed > 3) {
+        if ($emMovimento === true || $speed > 3) {
             return 'Em movimento';
         }
 
-        if ($ping->ignition === true) {
+        if ($ignicao === true || $ignicao === 1 || $ignicao === '1') {
             return 'Parado ign ligado';
         }
 
-        if ($ping->ignition === false) {
+        if ($ignicao === false || $ignicao === 0 || $ignicao === '0') {
             return 'Parado ign desligado';
         }
 

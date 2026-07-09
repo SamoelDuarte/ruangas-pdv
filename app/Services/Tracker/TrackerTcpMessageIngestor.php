@@ -135,9 +135,17 @@ class TrackerTcpMessageIngestor
             $gtinfFlag12 = $parts[12] ?? null;
             $gtinfFlag13 = $parts[13] ?? null;
 
-            // No padrao do seu dispositivo (ex.: ...,3.95,1,0,...), o campo 13
-            // representa o estado da ignicao. O campo 12 nao e usado para ACC.
-            $ignFromInf = $this->toBinaryFlag($parts[13] ?? null);
+            // Regra por prioridade para GTINF (protocolo observado no seu equipamento):
+            // 1) Flag ACC perto do final do pacote: ...,00/01,00,+0000,...
+            // 2) Campo de estado 11/22 apos o nome do dispositivo.
+            // 3) Fallback para flags intermediarias quando necessario.
+            $ignFromInf = $this->toBinaryFlag($parts[21] ?? null);
+            if ($ignFromInf === null) {
+                $ignFromInf = $this->mapGtinfStatusCodeToIgnition($parts[4] ?? null);
+            }
+            if ($ignFromInf === null) {
+                $ignFromInf = $this->toBinaryFlag($parts[13] ?? null);
+            }
             if ($ignFromInf === null) {
                 $ignFromInf = $this->toBinaryFlag($parts[14] ?? null);
             }
@@ -392,6 +400,21 @@ class TrackerTcpMessageIngestor
         // Aceita formatos comuns de flag: 0/1, 00/01.
         if (preg_match('/^[01]+$/', $normalized) === 1) {
             return (int) $normalized > 0;
+        }
+
+        return null;
+    }
+
+    private function mapGtinfStatusCodeToIgnition($value): ?bool
+    {
+        $normalized = trim((string) $value);
+
+        if ($normalized === '22') {
+            return true;
+        }
+
+        if ($normalized === '11') {
+            return false;
         }
 
         return null;

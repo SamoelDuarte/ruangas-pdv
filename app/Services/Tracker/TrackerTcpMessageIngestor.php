@@ -167,6 +167,14 @@ class TrackerTcpMessageIngestor
             }
 
             $tensaoBateria = $this->toFloat($parts[11] ?? null);
+
+            // No GTINF, o campo de ignicao (ACC) costuma vir como 0/1 na posicao 13.
+            // Ex.: ...,3.85,1,0,... => ignicao desligada.
+            $ignFromInf = $this->toBinaryFlag($parts[13] ?? null);
+            if ($ignFromInf !== null) {
+                $ignition = $ignFromInf;
+            }
+
             $gpsAt = $this->parseTrackerDate($parts[17] ?? null) ?: $this->parseTrackerDate($parts[27] ?? null);
         }
 
@@ -410,6 +418,20 @@ class TrackerTcpMessageIngestor
         }
 
         return (float) $normalized;
+    }
+
+    private function toBinaryFlag($value): ?bool
+    {
+        $normalized = trim((string) $value);
+        if ($normalized === '1') {
+            return true;
+        }
+
+        if ($normalized === '0') {
+            return false;
+        }
+
+        return null;
     }
 
     private function isValidLatitude(?float $value): bool

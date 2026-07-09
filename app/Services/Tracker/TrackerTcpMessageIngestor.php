@@ -21,10 +21,12 @@ class TrackerTcpMessageIngestor
 
         $carro = Carro::where('imei_rastreador', $parsed['imei'])->first();
         $stay = TrackerAddressStay::where('imei', $parsed['imei'])->latest('id')->first();
+        $packetType = strtoupper((string) ($parsed['packet_type'] ?? ''));
+        $isGpsPacket = $packetType === 'GTFRI';
 
         $addressLine = null;
         $geocodeSource = null;
-        if ($parsed['latitude'] !== null && $parsed['longitude'] !== null) {
+        if ($isGpsPacket && $parsed['latitude'] !== null && $parsed['longitude'] !== null) {
             [$addressLine, $geocodeSource] = $this->reverseGeocode((float) $parsed['latitude'], (float) $parsed['longitude']);
             $eventTime = $parsed['gps_at'] ?? Carbon::now();
             if (!empty($addressLine)) {
@@ -40,6 +42,45 @@ class TrackerTcpMessageIngestor
         } elseif ($stay) {
             $addressLine = $stay->address_line;
             $geocodeSource = 'last_stay';
+        }
+
+        if (!$isGpsPacket) {
+            $latestGpsPing = TrackerPing::where('imei', $parsed['imei'])
+                ->whereNotNull('latitude')
+                ->whereNotNull('longitude')
+                ->latest('id')
+                ->first();
+
+            if (!$latestGpsPing) {
+                return null;
+            }
+
+            $metadata = is_array($latestGpsPing->metadata) ? $latestGpsPing->metadata : [];
+            $metadata['last_packet_type'] = $packetType;
+            $metadata['last_packet_origin'] = $parsed['packet_origin'];
+            $metadata['last_packet_raw_message'] = $parsed['raw_message'];
+            $metadata['last_packet_received_at'] = Carbon::now()->toDateTimeString();
+            $metadata['last_packet_peer'] = $peer;
+            $metadata['tensao_bateria'] = $parsed['tensao_bateria'];
+            $metadata['tensao_veiculo'] = $parsed['tensao_veiculo'];
+
+            $latestGpsPing->update([
+                'carro_id' => $carro?->id ?? $latestGpsPing->carro_id,
+                'tracker_address_stay_id' => $stay?->id ?? $latestGpsPing->tracker_address_stay_id,
+                'protocol' => $parsed['protocol'] ?? $latestGpsPing->protocol,
+                'device_name' => $parsed['device_name'] ?? $latestGpsPing->device_name,
+                'speed' => $parsed['speed'] ?? $latestGpsPing->speed,
+                'tensao_bateria' => $parsed['tensao_bateria'] ?? $latestGpsPing->tensao_bateria,
+                'tensao_veiculo' => $parsed['tensao_veiculo'] ?? $latestGpsPing->tensao_veiculo,
+                'ignition' => $parsed['ignition'] ?? $latestGpsPing->ignition,
+                'in_motion' => $parsed['in_motion'] ?? $latestGpsPing->in_motion,
+                'address_line' => $addressLine ?? $latestGpsPing->address_line,
+                'geocode_source' => $geocodeSource ?? $latestGpsPing->geocode_source,
+                'received_at' => Carbon::now(),
+                'metadata' => $metadata,
+            ]);
+
+            return $latestGpsPing->fresh();
         }
 
         return TrackerPing::create([

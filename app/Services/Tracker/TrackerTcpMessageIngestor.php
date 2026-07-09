@@ -169,9 +169,13 @@ class TrackerTcpMessageIngestor
 
             $tensaoBateria = $this->toFloat($parts[11] ?? null);
 
-            // No GTINF, o campo de ignicao (ACC) costuma vir como 0/1 na posicao 13.
-            // Ex.: ...,3.85,1,0,... => ignicao desligada.
-            $ignFromInf = $this->toBinaryFlag($parts[13] ?? null);
+            // No padrao observado no seu GTINF, a flag de ignicao vem logo apos
+            // a tensao da bateria (campo 12). Mantemos fallback para campos seguintes.
+            // Ex.: ...,3.89,1,0,... => campo 12 = 1 (ignicao ligada).
+            $ignFromInf = $this->toBinaryFlag($parts[12] ?? null);
+            if ($ignFromInf === null) {
+                $ignFromInf = $this->toBinaryFlag($parts[13] ?? null);
+            }
             if ($ignFromInf === null) {
                 $ignFromInf = $this->toBinaryFlag($parts[14] ?? null);
             }

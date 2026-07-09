@@ -129,12 +129,12 @@ class TrackerTcpMessageIngestor
 
             $tensaoBateria = $this->toFloat($parts[11] ?? null);
 
-            // No padrao observado no seu GTINF, a flag de ignicao vem logo apos
-            // a tensao da bateria (campo 12). Mantemos fallback para campos seguintes.
-            // Ex.: ...,3.89,1,0,... => campo 12 = 1 (ignicao ligada).
-            $ignFromInf = $this->toBinaryFlag($parts[12] ?? null);
+            // No GTINF do GV30, apos a tensao aparecem dois flags. O segundo flag
+            // representa melhor o ACC (ignicao) no padrao observado: ...,3.95,1,0,...
+            // => ignicao desligada (0). Mantemos fallback para variacoes.
+            $ignFromInf = $this->toBinaryFlag($parts[13] ?? null);
             if ($ignFromInf === null) {
-                $ignFromInf = $this->toBinaryFlag($parts[13] ?? null);
+                $ignFromInf = $this->toBinaryFlag($parts[12] ?? null);
             }
             if ($ignFromInf === null) {
                 $ignFromInf = $this->toBinaryFlag($parts[14] ?? null);

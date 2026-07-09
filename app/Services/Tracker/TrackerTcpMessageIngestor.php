@@ -21,6 +21,7 @@ class TrackerTcpMessageIngestor
 
         $carro = Carro::where('imei_rastreador', $parsed['imei'])->first();
         $stay = TrackerAddressStay::where('imei', $parsed['imei'])->latest('id')->first();
+        $lastPing = TrackerPing::where('imei', $parsed['imei'])->latest('id')->first();
         $packetType = strtoupper((string) ($parsed['packet_type'] ?? ''));
         $isGpsPacket = $packetType === 'GTFRI';
 
@@ -98,7 +99,7 @@ class TrackerTcpMessageIngestor
             'speed' => $parsed['speed'],
             'tensao_bateria' => $parsed['tensao_bateria'],
             'tensao_veiculo' => $parsed['tensao_veiculo'],
-            'ignition' => $parsed['ignition'],
+            'ignition' => $parsed['ignition'] ?? $lastPing?->ignition,
             'in_motion' => $parsed['in_motion'],
             'address_line' => $addressLine,
             'geocode_source' => $geocodeSource,
@@ -369,16 +370,6 @@ class TrackerTcpMessageIngestor
 
         if ($packetType === 'GTIGF') {
             return false;
-        }
-
-        if (in_array($packetType, ['GTFRI', 'GTERI'], true)) {
-            $candidate = $parts[7] ?? null;
-            if ($candidate === '1') {
-                return true;
-            }
-            if ($candidate === '0') {
-                return false;
-            }
         }
 
         return null;

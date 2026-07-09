@@ -170,7 +170,7 @@
                             <th>Status</th>
                             <th>Igni</th>
                             <th>Vel. km/h</th>
-                            <th>Alt.</th>
+                            <th>Bateria Veiculo</th>
                             <th>Latitude</th>
                             <th>Longitude</th>
                             <th>Endereco</th>
@@ -486,7 +486,7 @@
                     <td><span class="${classeStatus(row.status)}">${row.status}</span></td>
                     <td>${textoIgnicao(row.ignicao)}</td>
                     <td>${row.velocidade ?? '-'}</td>
-                    <td>${row.altitude ?? '-'}</td>
+                    <td>${row.tensao_veiculo != null ? `${Number(row.tensao_veiculo).toFixed(2)} V` : '-'}</td>
                     <td>${row.latitude ?? '-'}</td>
                     <td>${row.longitude ?? '-'}</td>
                     <td style="min-width: 280px;">${row.endereco || '-'}</td>

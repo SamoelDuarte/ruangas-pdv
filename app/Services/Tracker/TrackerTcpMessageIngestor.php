@@ -171,6 +171,9 @@ class TrackerTcpMessageIngestor
             // No GTINF, o campo de ignicao (ACC) costuma vir como 0/1 na posicao 13.
             // Ex.: ...,3.85,1,0,... => ignicao desligada.
             $ignFromInf = $this->toBinaryFlag($parts[13] ?? null);
+            if ($ignFromInf === null) {
+                $ignFromInf = $this->toBinaryFlag($parts[14] ?? null);
+            }
             if ($ignFromInf !== null) {
                 $ignition = $ignFromInf;
             }
@@ -423,12 +426,13 @@ class TrackerTcpMessageIngestor
     private function toBinaryFlag($value): ?bool
     {
         $normalized = trim((string) $value);
-        if ($normalized === '1') {
-            return true;
+        if ($normalized === '') {
+            return null;
         }
 
-        if ($normalized === '0') {
-            return false;
+        // Aceita formatos comuns de flag: 0/1, 00/01.
+        if (preg_match('/^[01]+$/', $normalized) === 1) {
+            return (int) $normalized > 0;
         }
 
         return null;

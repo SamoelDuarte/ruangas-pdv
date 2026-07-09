@@ -69,6 +69,8 @@ class TrackerTcpMessageIngestor
                 'peer' => $peer,
                 'part_count' => $parsed['part_count'],
                 'battery' => $parsed['battery'],
+                'gtinf_flag_12' => $parsed['gtinf_flag_12'] ?? null,
+                'gtinf_flag_13' => $parsed['gtinf_flag_13'] ?? null,
             ],
         ]);
     }
@@ -111,6 +113,8 @@ class TrackerTcpMessageIngestor
         $battery = null;
         $tensaoBateria = null;
         $tensaoVeiculo = null;
+        $gtinfFlag12 = null;
+        $gtinfFlag13 = null;
         $ignition = $this->guessIgnition($packetType, $parts);
         $inMotion = $this->guessMotion($packetType, $parts);
 
@@ -128,14 +132,12 @@ class TrackerTcpMessageIngestor
             }
 
             $tensaoBateria = $this->toFloat($parts[11] ?? null);
+            $gtinfFlag12 = $parts[12] ?? null;
+            $gtinfFlag13 = $parts[13] ?? null;
 
-            // No GTINF do GV30, apos a tensao aparecem dois flags. O segundo flag
-            // representa melhor o ACC (ignicao) no padrao observado: ...,3.95,1,0,...
-            // => ignicao desligada (0). Mantemos fallback para variacoes.
+            // No padrao do seu dispositivo (ex.: ...,3.95,1,0,...), o campo 13
+            // representa o estado da ignicao. O campo 12 nao e usado para ACC.
             $ignFromInf = $this->toBinaryFlag($parts[13] ?? null);
-            if ($ignFromInf === null) {
-                $ignFromInf = $this->toBinaryFlag($parts[12] ?? null);
-            }
             if ($ignFromInf === null) {
                 $ignFromInf = $this->toBinaryFlag($parts[14] ?? null);
             }
@@ -166,6 +168,8 @@ class TrackerTcpMessageIngestor
             'in_motion' => $inMotion,
             'tensao_bateria' => $tensaoBateria,
             'tensao_veiculo' => $tensaoVeiculo,
+            'gtinf_flag_12' => $gtinfFlag12,
+            'gtinf_flag_13' => $gtinfFlag13,
             'battery' => $battery,
             'part_count' => count($parts),
         ];

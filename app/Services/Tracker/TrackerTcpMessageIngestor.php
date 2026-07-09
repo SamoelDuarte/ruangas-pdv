@@ -22,7 +22,7 @@ class TrackerTcpMessageIngestor
         $carro = Carro::where('imei_rastreador', $parsed['imei'])->first();
         $stay = TrackerAddressStay::where('imei', $parsed['imei'])->latest('id')->first();
         $packetType = strtoupper((string) ($parsed['packet_type'] ?? ''));
-        $isGpsPacket = $packetType === 'GTFRI';
+        $isGpsPacket = in_array($packetType, ['GTFRI', 'GTSTT'], true);
 
         $addressLine = null;
         $geocodeSource = null;
@@ -125,6 +125,9 @@ class TrackerTcpMessageIngestor
             $latitude = $this->toFloat($parts[12] ?? null);
             $gpsAt = $this->parseTrackerDate($parts[13] ?? null);
             $battery = $this->toFloat($parts[20] ?? null);
+        } elseif ($packetType === 'GTSTT') {
+            [$longitude, $latitude] = $this->findCoordinates($parts);
+            $gpsAt = $this->findDateInParts($parts);
         } elseif ($packetType === 'GTINF') {
             $tensaoVeiculoRaw = $this->toFloat($parts[9] ?? null);
             if ($tensaoVeiculoRaw !== null) {

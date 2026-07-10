@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Services\Tracker\TrackerTcpCommandDispatcher;
 use App\Services\Tracker\TrackerTcpMessageIngestor;
 use Illuminate\Console\Command;
 use Throwable;
@@ -33,6 +34,7 @@ class TrackerTcpListen extends Command
         $maxBytes = (int) config('tracker_tcp.max_bytes_per_read', 4096);
         $saveMessages = (bool) config('tracker_tcp.save_messages', true);
         $ingestor = $saveMessages ? app(TrackerTcpMessageIngestor::class) : null;
+        $commandDispatcher = app(TrackerTcpCommandDispatcher::class);
 
         $bind = "tcp://{$host}:{$port}";
         $errno = 0;
@@ -54,6 +56,7 @@ class TrackerTcpListen extends Command
 
         $clients = [];
         $buffers = [];
+        $clientImeis = [];
 
         try {
             while (true) {
@@ -96,6 +99,7 @@ class TrackerTcpListen extends Command
                             fclose($socket);
                             unset($clients[$id]);
                             unset($buffers[$id]);
+                            unset($clientImeis[$id]);
                             $this->line('[' . now()->format('H:i:s') . "] DESCONECTOU: {$peer}");
                         }
                         continue;
@@ -118,6 +122,11 @@ class TrackerTcpListen extends Command
                         $this->line('[' . now()->format('H:i:s') . "] {$peer} => {$clean}");
                         $this->line('HEX: ' . $hexPreview);
 
+                        $imei = $this->extractImeiFromFrame($clean);
+                        if ($imei !== null) {
+                            $clientImeis[$id] = $imei;
+                        }
+
                         if ($ingestor !== null) {
                             try {
                                 $ingestor->ingest($clean, $peer);
@@ -127,6 +136,15 @@ class TrackerTcpListen extends Command
                         }
                     }
                 }
+
+                $connectionsByImei = [];
+                foreach ($clientImeis as $clientId => $imei) {
+                    if (isset($clients[$clientId])) {
+                        $connectionsByImei[$imei] = $clients[$clientId];
+                    }
+                }
+
+                $commandDispatcher->dispatchPendingForConnections($connectionsByImei);
             }
         } catch (Throwable $e) {
             $this->error('Erro no listener TCP: ' . $e->getMessage());
@@ -139,5 +157,26 @@ class TrackerTcpListen extends Command
         }
 
         return self::SUCCESS;
+    }
+
+    private function extractImeiFromFrame(string $frame): ?string
+    {
+        $trimmed = trim($frame);
+        if ($trimmed === '') {
+            return null;
+        }
+
+        if (str_ends_with($trimmed, '$')) {
+            $trimmed = substr($trimmed, 0, -1);
+        }
+
+        $parts = explode(',', $trimmed);
+        if (count($parts) < 3) {
+            return null;
+        }
+
+        $imei = preg_replace('/\D+/', '', (string) ($parts[2] ?? ''));
+
+        return $imei !== '' ? $imei : null;
     }
 }

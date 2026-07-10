@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Carro;
 use App\Models\TrackerAddressStay;
+use App\Models\TrackerCommand;
 use App\Models\TrackerPing;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -22,6 +23,7 @@ class CarroController extends Controller
             'listar',
             'rastreamento',
             'dadosRastreamento',
+            'alternarBloqueioRastreador',
         ]);
     }
     
@@ -147,6 +149,7 @@ class CarroController extends Controller
     public function dadosRastreamento()
     {
         $carros = Carro::orderBy('nome')->get(['id', 'nome', 'placa', 'modelo', 'imei_rastreador']);
+        $trackerCommandsConfigured = $this->trackerCommandsConfigured();
 
         $latestAnyIds = TrackerPing::selectRaw('MAX(id) as id')
             ->groupBy('imei');
@@ -173,6 +176,11 @@ class CarroController extends Controller
         $latestStays = TrackerAddressStay::whereIn('id', $latestStayIds)
             ->get();
 
+        $latestCommandIds = TrackerCommand::selectRaw('MAX(id) as id')
+            ->groupBy('imei');
+
+        $latestCommands = TrackerCommand::whereIn('id', $latestCommandIds)->get();
+
         $latestAnyByImei = $latestAny->mapWithKeys(function (TrackerPing $ping) {
             return [$this->normalizeImei($ping->imei) => $ping];
         });
@@ -189,6 +197,10 @@ class CarroController extends Controller
             return [$this->normalizeImei($stay->imei) => $stay];
         });
 
+        $latestCommandsByImei = $latestCommands->mapWithKeys(function (TrackerCommand $command) {
+            return [$this->normalizeImei($command->imei) => $command];
+        });
+
         $carrosByImei = $carros
             ->filter(fn (Carro $carro) => !empty($carro->imei_rastreador))
             ->mapWithKeys(function (Carro $carro) {
@@ -203,11 +215,13 @@ class CarroController extends Controller
             $pingFri = $imeiNormalizado !== '' ? $latestFriByImei->get($imeiNormalizado) : null;
             $pingInf = $imeiNormalizado !== '' ? $latestInfByImei->get($imeiNormalizado) : null;
             $stay = $imeiNormalizado !== '' ? $latestStaysByImei->get($imeiNormalizado) : null;
+            $lastCommand = $imeiNormalizado !== '' ? $latestCommandsByImei->get($imeiNormalizado) : null;
 
             $ignicao = $pingInf?->ignition ?? $pingAny?->ignition;
             $velocidade = $pingFri?->speed ?? $pingAny?->speed;
             $emMovimento = $pingAny?->in_motion;
             $status = $this->resolverStatusComposto($ignicao, $emMovimento, $velocidade);
+            $bloqueado = $this->resolveTrackerBlockedState($lastCommand);
 
             $rows[] = [
                 'carro_id' => $carro->id,
@@ -230,6 +244,10 @@ class CarroController extends Controller
                 'ultima_msg' => $pingAny?->raw_message,
                 'recebido_em' => optional($pingAny?->received_at)->toDateTimeString(),
                 'gps_em' => optional($pingFri?->gps_at)->toDateTimeString(),
+                'tracker_bloqueado' => $bloqueado,
+                'tracker_comando_status' => $lastCommand?->status,
+                'tracker_comando_em' => optional($lastCommand?->sent_at ?? $lastCommand?->requested_at)->toDateTimeString(),
+                'tracker_comandos_habilitados' => $trackerCommandsConfigured,
             ];
         }
 
@@ -242,11 +260,13 @@ class CarroController extends Controller
             $pingFri = $latestFriByImei->get($imeiNormalizado);
             $pingInf = $latestInfByImei->get($imeiNormalizado);
             $stay = $latestStaysByImei->get($imeiNormalizado);
+            $lastCommand = $latestCommandsByImei->get($imeiNormalizado);
 
             $ignicao = $pingInf?->ignition ?? $pingAny->ignition;
             $velocidade = $pingFri?->speed ?? $pingAny->speed;
             $emMovimento = $pingAny->in_motion;
             $status = $this->resolverStatusComposto($ignicao, $emMovimento, $velocidade);
+            $bloqueado = $this->resolveTrackerBlockedState($lastCommand);
 
             $rows[] = [
                 'carro_id' => null,
@@ -269,6 +289,10 @@ class CarroController extends Controller
                 'ultima_msg' => $pingAny->raw_message,
                 'recebido_em' => optional($pingAny->received_at)->toDateTimeString(),
                 'gps_em' => optional($pingFri?->gps_at)->toDateTimeString(),
+                'tracker_bloqueado' => $bloqueado,
+                'tracker_comando_status' => $lastCommand?->status,
+                'tracker_comando_em' => optional($lastCommand?->sent_at ?? $lastCommand?->requested_at)->toDateTimeString(),
+                'tracker_comandos_habilitados' => $trackerCommandsConfigured,
             ];
         }
 
@@ -285,9 +309,91 @@ class CarroController extends Controller
         ]);
     }
 
+    public function alternarBloqueioRastreador(Request $request, Carro $carro)
+    {
+        $payload = $request->validate([
+            'action' => 'required|in:block,unblock',
+        ]);
+
+        $imei = $this->normalizeImei((string) ($carro->imei_rastreador ?? ''));
+        if ($imei === '') {
+            return response()->json([
+                'message' => 'Este veiculo nao possui IMEI de rastreador vinculado.',
+            ], 422);
+        }
+
+        if (!$this->trackerCommandsConfigured()) {
+            return response()->json([
+                'message' => 'Configure TRACKER_TCP_COMMAND_BLOCK e TRACKER_TCP_COMMAND_UNBLOCK antes de enviar comandos.',
+            ], 422);
+        }
+
+        $pendingCommand = TrackerCommand::query()
+            ->where('imei', $imei)
+            ->where('status', 'pending')
+            ->latest('id')
+            ->first();
+
+        if ($pendingCommand !== null) {
+            return response()->json([
+                'message' => 'Ja existe um comando pendente para este rastreador.',
+            ], 409);
+        }
+
+        $action = $payload['action'];
+        $template = (string) config("tracker_tcp.commands.{$action}", '');
+
+        $command = TrackerCommand::create([
+            'carro_id' => $carro->id,
+            'imei' => $imei,
+            'command_name' => $action,
+            'target_blocked' => $action === 'block',
+            'command_payload' => $this->buildTrackerCommandPayload($template, $carro, $action),
+            'status' => 'pending',
+            'requested_at' => now(),
+        ]);
+
+        return response()->json([
+            'message' => $action === 'block'
+                ? 'Comando de bloqueio enfileirado para envio no listener TCP.'
+                : 'Comando de desbloqueio enfileirado para envio no listener TCP.',
+            'command_id' => $command->id,
+            'status' => $command->status,
+        ], 201);
+    }
+
     private function normalizeImei(string $imei): string
     {
         return preg_replace('/\D+/', '', trim($imei)) ?? '';
+    }
+
+    private function trackerCommandsConfigured(): bool
+    {
+        return trim((string) config('tracker_tcp.commands.block', '')) !== ''
+            && trim((string) config('tracker_tcp.commands.unblock', '')) !== '';
+    }
+
+    private function buildTrackerCommandPayload(string $template, Carro $carro, string $action): string
+    {
+        return strtr($template, [
+            '{imei}' => $this->normalizeImei((string) ($carro->imei_rastreador ?? '')),
+            '{placa}' => (string) ($carro->placa ?? ''),
+            '{action}' => $action,
+            '{timestamp}' => now()->format('YmdHis'),
+        ]);
+    }
+
+    private function resolveTrackerBlockedState(?TrackerCommand $command): bool
+    {
+        if ($command === null) {
+            return false;
+        }
+
+        if (in_array($command->status, ['failed', 'cancelled'], true)) {
+            return false;
+        }
+
+        return (bool) $command->target_blocked;
     }
 
     private function resolverStatusComposto($ignicao, $emMovimento, $velocidade): string

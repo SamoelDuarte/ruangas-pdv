@@ -232,6 +232,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/carros/listar', [CarroController::class, 'listar'])->name('carros.listar');
     Route::get('/carros/rastreamento', [CarroController::class, 'rastreamento'])->name('carros.rastreamento');
     Route::get('/carros/rastreamento/dados', [CarroController::class, 'dadosRastreamento'])->name('carros.rastreamento.dados');
+    Route::post('/carros/{carro}/rastreamento/bloqueio', [CarroController::class, 'alternarBloqueioRastreador'])->name('carros.rastreamento.bloqueio');
     Route::resource('carros', CarroController::class);
     Route::get('/limite-km/global', [LimiteKmController::class, 'getGlobal'])->name('limite-km.global');
     Route::get('/limite-km/{carro}', [LimiteKmController::class, 'show'])->name('limite-km.show');

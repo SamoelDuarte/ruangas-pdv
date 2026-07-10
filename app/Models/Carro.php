@@ -35,4 +35,9 @@ class Carro extends Model
     {
         return $this->hasMany(TrackerAddressStay::class);
     }
+
+    public function trackerCommands()
+    {
+        return $this->hasMany(TrackerCommand::class);
+    }
 }

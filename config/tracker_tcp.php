@@ -16,4 +16,8 @@ return [
     'reverse_geocode' => (bool) env('TRACKER_TCP_REVERSE_GEOCODE', true),
     'ignore_packet_types' => $csvToArray((string) env('TRACKER_TCP_IGNORE_PACKET_TYPES', 'GTINF')),
     'gps_packet_types' => $csvToArray((string) env('TRACKER_TCP_GPS_PACKET_TYPES', 'GTFRI,GTERI')),
+    'commands' => [
+        'block' => (string) env('TRACKER_TCP_COMMAND_BLOCK', ''),
+        'unblock' => (string) env('TRACKER_TCP_COMMAND_UNBLOCK', ''),
+    ],
 ];

@@ -167,6 +167,7 @@
                             <th>Placa</th>
                             <th>Modelo</th>
                             <th>IMEI</th>
+                            <th>Comando</th>
                             <th>Status</th>
                             <th>Igni</th>
                             <th>Vel. km/h</th>
@@ -182,7 +183,7 @@
                     </thead>
                     <tbody id="tbodyRastreamento">
                         <tr>
-                            <td colspan="14" class="text-center py-4 text-muted">Carregando dados de rastreamento...</td>
+                            <td colspan="15" class="text-center py-4 text-muted">Carregando dados de rastreamento...</td>
                         </tr>
                     </tbody>
                 </table>
@@ -471,18 +472,48 @@
         const tbody = document.getElementById('tbodyRastreamento');
 
         if (!rows.length) {
-            tbody.innerHTML = '<tr><td colspan="14" class="text-center py-4 text-muted">Sem dados de rastreamento ainda.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="15" class="text-center py-4 text-muted">Sem dados de rastreamento ainda.</td></tr>';
             return;
         }
 
         let html = '';
 
         rows.forEach((row) => {
+            const bloqueado = row.tracker_bloqueado === true;
+            const comandoPendente = row.tracker_comando_status === 'pending';
+            const comandosHabilitados = row.tracker_comandos_habilitados === true;
+            const temCarro = row.carro_id != null;
+            const temImei = !!row.imei;
+            const acao = bloqueado ? 'unblock' : 'block';
+            const rotulo = bloqueado ? 'Desbloquear' : 'Bloquear';
+            const pergunta = bloqueado ? 'Deseja realmente desbloquear?' : 'Deseja realmente bloquear?';
+            let botaoComando = '<span class="text-muted small">Indisponivel</span>';
+
+            if (!comandosHabilitados) {
+                botaoComando = '<span class="text-muted small">Configurar comando</span>';
+            } else if (!temCarro || !temImei) {
+                botaoComando = '<span class="text-muted small">Sem IMEI</span>';
+            } else {
+                const classeBotao = bloqueado ? 'btn-outline-success' : 'btn-outline-danger';
+                const disabled = comandoPendente ? 'disabled' : '';
+                const legenda = comandoPendente ? 'Enviando...' : rotulo;
+                botaoComando = `
+                    <div class="d-grid gap-1">
+                        <button type="button" class="btn btn-sm ${classeBotao}" ${disabled}
+                            onclick="enviarComandoBloqueio(${row.carro_id}, '${acao}', '${pergunta}')">
+                            ${legenda}
+                        </button>
+                        <small class="text-muted">${row.tracker_comando_status || '-'}</small>
+                    </div>
+                `;
+            }
+
             html += `
                 <tr>
                     <td>${row.placa || '-'}</td>
                     <td>${row.modelo || row.nome || '-'}</td>
                     <td>${row.imei || '-'}</td>
+                    <td>${botaoComando}</td>
                     <td><span class="${classeStatus(row.status)}">${row.status}</span></td>
                     <td>${textoIgnicao(row.ignicao)}</td>
                     <td>${row.velocidade ?? '-'}</td>
@@ -499,6 +530,36 @@
         });
 
         tbody.innerHTML = html;
+    }
+
+    async function enviarComandoBloqueio(carroId, action, confirmationText) {
+        if (!window.confirm(confirmationText)) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/carros/${carroId}/rastreamento/bloqueio`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                },
+                body: JSON.stringify({ action }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.message || 'Falha ao enviar comando');
+            }
+
+            showToast('success', data.message || 'Comando enviado');
+            await carregarRastreamento(false);
+        } catch (error) {
+            showToast('error', error.message || 'Falha ao enviar comando');
+            console.error(error);
+        }
     }
 
     async function carregarRastreamento(manual = false) {

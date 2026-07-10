@@ -21,6 +21,8 @@ class CarroController extends Controller
             'destroy',
             'buscar',
             'listar',
+            'comandos',
+            'enviarComando',
             'rastreamento',
             'dadosRastreamento',
             'alternarBloqueioRastreador',
@@ -144,6 +146,96 @@ class CarroController extends Controller
     public function rastreamento()
     {
         return view('carros.rastreamento');
+    }
+
+    public function comandos()
+    {
+        $carros = Carro::query()
+            ->orderBy('nome')
+            ->get(['id', 'nome', 'placa', 'modelo', 'imei_rastreador']);
+
+        $historico = TrackerCommand::query()
+            ->with(['carro:id,nome,placa'])
+            ->latest('id')
+            ->limit(120)
+            ->get();
+
+        return view('carros.comandos', [
+            'carros' => $carros,
+            'historico' => $historico,
+            'commandsConfigured' => $this->trackerCommandsConfigured(),
+        ]);
+    }
+
+    public function enviarComando(Request $request)
+    {
+        $payload = $request->validate([
+            'carro_id' => 'required|exists:carros,id',
+            'action' => 'required|in:block,unblock,custom',
+            'custom_name' => 'nullable|string|max:50',
+            'command_payload' => 'nullable|string|max:1000',
+        ]);
+
+        $carro = Carro::findOrFail((int) $payload['carro_id']);
+        $imei = $this->normalizeImei((string) ($carro->imei_rastreador ?? ''));
+
+        if ($imei === '') {
+            return redirect()
+                ->route('carros.comandos')
+                ->with('error', 'O carro selecionado nao possui IMEI vinculado.');
+        }
+
+        $pendingCommand = TrackerCommand::query()
+            ->where('imei', $imei)
+            ->where('status', 'pending')
+            ->latest('id')
+            ->first();
+
+        if ($pendingCommand !== null) {
+            return redirect()
+                ->route('carros.comandos')
+                ->with('error', 'Ja existe um comando pendente para este rastreador. Aguarde o envio.');
+        }
+
+        $action = (string) $payload['action'];
+        $commandName = $action;
+        $commandPayload = '';
+        $targetBlocked = false;
+
+        if ($action === 'custom') {
+            $commandPayload = trim((string) ($payload['command_payload'] ?? ''));
+            $commandName = trim((string) ($payload['custom_name'] ?? '')) ?: 'custom';
+
+            if ($commandPayload === '') {
+                return redirect()
+                    ->route('carros.comandos')
+                    ->with('error', 'Informe o comando bruto para envio personalizado.');
+            }
+        } else {
+            if (!$this->trackerCommandsConfigured()) {
+                return redirect()
+                    ->route('carros.comandos')
+                    ->with('error', 'Configure TRACKER_TCP_COMMAND_BLOCK e TRACKER_TCP_COMMAND_UNBLOCK no .env.');
+            }
+
+            $template = (string) config("tracker_tcp.commands.{$action}", '');
+            $commandPayload = $this->buildTrackerCommandPayload($template, $carro, $action);
+            $targetBlocked = $action === 'block';
+        }
+
+        TrackerCommand::create([
+            'carro_id' => $carro->id,
+            'imei' => $imei,
+            'command_name' => $commandName,
+            'target_blocked' => $targetBlocked,
+            'command_payload' => $commandPayload,
+            'status' => 'pending',
+            'requested_at' => now(),
+        ]);
+
+        return redirect()
+            ->route('carros.comandos')
+            ->with('success', 'Comando enfileirado com sucesso. Aguarde o listener TCP enviar.');
     }
 
     public function dadosRastreamento()

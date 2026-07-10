@@ -111,6 +111,7 @@
                         <ul class="dropdown-menu" aria-labelledby="navbarDropdownCarros">
                             <li><a class="dropdown-item" href="{{ route('carros.index') }}">Cadastro de Carros</a></li>
                             <li><a class="dropdown-item" href="{{ route('carros.rastreamento') }}">Rastreamento</a></li>
+                            <li><a class="dropdown-item" href="{{ route('carros.comandos') }}">Comandos TCP</a></li>
                         </ul>
                     </li>
                 @endcan

@@ -230,6 +230,8 @@ Route::middleware('auth')->group(function () {
     
     Route::get('/carros/buscar', [CarroController::class, 'buscar'])->name('carros.buscar');
     Route::get('/carros/listar', [CarroController::class, 'listar'])->name('carros.listar');
+    Route::get('/carros/comandos', [CarroController::class, 'comandos'])->name('carros.comandos');
+    Route::post('/carros/comandos', [CarroController::class, 'enviarComando'])->name('carros.comandos.enviar');
     Route::get('/carros/rastreamento', [CarroController::class, 'rastreamento'])->name('carros.rastreamento');
     Route::get('/carros/rastreamento/dados', [CarroController::class, 'dadosRastreamento'])->name('carros.rastreamento.dados');
     Route::post('/carros/{carro}/rastreamento/bloqueio', [CarroController::class, 'alternarBloqueioRastreador'])->name('carros.rastreamento.bloqueio');

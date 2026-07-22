@@ -186,32 +186,47 @@ class CampaignController extends Controller
             return redirect()->route('campaign.index')->with('error', 'Campanha não encontrada.');
         }
 
-        // Atualizar os campos da campanha
-        $campaign->titulo = $request->titulo;
-        $campaign->texto = $request->texto ?? null;
-        $campaign->imagem_id = $request->imagem_id;
-        $campaign->contact_id = $request->contact_id;
-        $campaign->save();
+        DB::transaction(function () use ($request, $campaign, $id) {
+            $oldCampaignContact = CampaignContact::where('campaign_id', $id)
+                ->get()
+                ->keyBy('contact_list_id');
+            $sameContactList = (int) $campaign->contact_id === (int) $request->contact_id;
+            $campaignIsComplete = $sameContactList
+                && $oldCampaignContact->isNotEmpty()
+                && $oldCampaignContact->every(fn ($campaignContact) => (bool) $campaignContact->send);
 
-        // Remover relacionamentos antigos entre campanha e contatos
-        CampaignContact::where('campaign_id', $id)->delete();
+            $campaign->titulo = $request->titulo;
+            $campaign->texto = $request->texto ?? null;
+            $campaign->imagem_id = $request->imagem_id;
+            $campaign->contact_id = $request->contact_id;
+            $campaign->save();
 
-        // Criar novos relacionamentos com os contatos da lista selecionada
-        $contactLists = ContactList::where('contact_id', $request->contact_id)->get();
-        foreach ($contactLists as $contactList) {
-            $campaignContact = new CampaignContact();
-            $campaignContact->campaign_id = $campaign->id;
-            $campaignContact->contact_list_id = $contactList->id;
-            $campaignContact->send = false;
-            $campaignContact->save();
-        }
+            $contactListIds = ContactList::where('contact_id', $request->contact_id)
+                ->pluck('id');
 
-        // Remover relacionamentos antigos entre campanha e dispositivos
-        DB::table('campaign_device')->where('campaign_id', $id)->delete();
+            CampaignContact::where('campaign_id', $id)
+                ->whereNotIn('contact_list_id', $contactListIds)
+                ->delete();
 
-        // Se o usuário selecionou devices
-        if ($request->has('devices') && is_array($request->devices)) {
-            foreach ($request->devices as $deviceId) {
+            foreach ($contactListIds as $contactListId) {
+                $campaignContact = $oldCampaignContact->get($contactListId);
+
+                if ($campaignContact) {
+                    $campaignContact->send = $campaignIsComplete ? false : $campaignContact->send;
+                    $campaignContact->save();
+                    continue;
+                }
+
+                CampaignContact::create([
+                    'campaign_id' => $campaign->id,
+                    'contact_list_id' => $contactListId,
+                    'send' => false,
+                ]);
+            }
+
+            DB::table('campaign_device')->where('campaign_id', $id)->delete();
+
+            foreach ($request->input('devices', []) as $deviceId) {
                 DB::table('campaign_device')->insert([
                     'campaign_id' => $campaign->id,
                     'device_id' => $deviceId,
@@ -219,7 +234,7 @@ class CampaignController extends Controller
                     'updated_at' => now(),
                 ]);
             }
-        }
+        });
 
         return Redirect::route('campaign.index')->with('success', 'Campanha atualizada com sucesso.');
     }

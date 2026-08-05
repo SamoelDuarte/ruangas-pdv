@@ -361,10 +361,56 @@
     }
 
     let somAlertaSosAtivo = false;
-    let somAlertaSosTimer = null;
+    let somAlertaSosInterval = null;
     let somAlertaSosContext = null;
     let somAlertaSosOscilador = null;
-    const imeisAlertaSosDesligados = new Set();
+    let somAlertaSosGanho = null;
+    const STORAGE_SOS_DESLIGADOS = 'tracker_sos_desligados_v1';
+
+    function obterSosDesligados() {
+        try {
+            const raw = localStorage.getItem(STORAGE_SOS_DESLIGADOS);
+            if (!raw) {
+                return {};
+            }
+            return JSON.parse(raw) || {};
+        } catch (error) {
+            return {};
+        }
+    }
+
+    function salvarSosDesligados(dados) {
+        try {
+            localStorage.setItem(STORAGE_SOS_DESLIGADOS, JSON.stringify(dados));
+        } catch (error) {
+            // Ignora falhas de armazenamento local.
+        }
+    }
+
+    function isSosDesligadoParaImei(imei, recebidoEm) {
+        const chave = String(imei || '').trim();
+        if (!chave) {
+            return false;
+        }
+
+        const dados = obterSosDesligados();
+        const item = dados[chave];
+        if (!item) {
+            return false;
+        }
+
+        if (recebidoEm) {
+            const novoTs = new Date(recebidoEm).getTime();
+            const desligadoTs = new Date(item.desligadoEm || 0).getTime();
+            if (!Number.isNaN(novoTs) && !Number.isNaN(desligadoTs) && novoTs > desligadoTs) {
+                delete dados[chave];
+                salvarSosDesligados(dados);
+                return false;
+            }
+        }
+
+        return true;
+    }
 
     function iniciarSomAlertaSos() {
         if (somAlertaSosAtivo) {
@@ -378,31 +424,40 @@
 
         somAlertaSosContext = new AudioCtor();
         somAlertaSosOscilador = somAlertaSosContext.createOscillator();
-        const ganho = somAlertaSosContext.createGain();
+        somAlertaSosGanho = somAlertaSosContext.createGain();
 
         somAlertaSosOscilador.type = 'sawtooth';
-        somAlertaSosOscilador.frequency.value = 880;
-        ganho.gain.value = 0.025;
+        somAlertaSosOscilador.frequency.value = 980;
+        somAlertaSosGanho.gain.value = 0.0001;
 
-        somAlertaSosOscilador.connect(ganho);
-        ganho.connect(somAlertaSosContext.destination);
+        somAlertaSosOscilador.connect(somAlertaSosGanho);
+        somAlertaSosGanho.connect(somAlertaSosContext.destination);
         somAlertaSosOscilador.start();
-        somAlertaSosAtivo = true;
 
-        somAlertaSosTimer = setInterval(() => {
-            if (somAlertaSosContext && somAlertaSosContext.state === 'suspended') {
+        let toneOn = true;
+        somAlertaSosInterval = setInterval(() => {
+            if (!somAlertaSosContext || !somAlertaSosOscilador || !somAlertaSosGanho) {
+                return;
+            }
+
+            if (somAlertaSosContext.state === 'suspended') {
                 somAlertaSosContext.resume();
             }
-            if (somAlertaSosOscilador) {
-                somAlertaSosOscilador.frequency.value = 880;
-            }
-        }, 900);
+
+            toneOn = !toneOn;
+            const volume = toneOn ? 0.03 : 0.0001;
+            const freq = toneOn ? 980 : 760;
+            somAlertaSosOscilador.frequency.setValueAtTime(freq, somAlertaSosContext.currentTime);
+            somAlertaSosGanho.gain.setTargetAtTime(volume, somAlertaSosContext.currentTime, 0.08);
+        }, 700);
+
+        somAlertaSosAtivo = true;
     }
 
     function pararSomAlertaSos() {
-        if (somAlertaSosTimer) {
-            clearInterval(somAlertaSosTimer);
-            somAlertaSosTimer = null;
+        if (somAlertaSosInterval) {
+            clearInterval(somAlertaSosInterval);
+            somAlertaSosInterval = null;
         }
 
         if (somAlertaSosOscilador) {
@@ -423,16 +478,22 @@
             somAlertaSosContext = null;
         }
 
+        somAlertaSosGanho = null;
         somAlertaSosAtivo = false;
     }
 
     function desligarAlertaSos(imei) {
-        if (!imei) {
+        const chave = String(imei || '').trim();
+        if (!chave) {
             pararSomAlertaSos();
             return;
         }
 
-        imeisAlertaSosDesligados.add(String(imei));
+        const dados = obterSosDesligados();
+        dados[chave] = {
+            desligadoEm: new Date().toISOString(),
+        };
+        salvarSosDesligados(dados);
         pararSomAlertaSos();
     }
 
@@ -576,7 +637,7 @@
             const rotulo = bloqueado ? 'Desbloquear' : 'Bloquear';
             const pergunta = bloqueado ? 'Deseja realmente desbloquear?' : 'Deseja realmente bloquear?';
             const imeiNormalizado = row.imei ? String(row.imei) : '';
-            const sosAtivo = !!row.sos_ativo && !imeisAlertaSosDesligados.has(imeiNormalizado);
+            const sosAtivo = !!row.sos_ativo && !isSosDesligadoParaImei(imeiNormalizado, row.recebido_em);
 
             let botaoComando = '<span class="text-muted small">Indisponivel</span>';
 
@@ -665,7 +726,10 @@
             const response = await fetch('{{ route('carros.rastreamento.dados') }}');
             const data = await response.json();
             const rows = Array.isArray(data.rows) ? data.rows : [];
-            const temAlertaSosAtivo = rows.some((row) => !!row.sos_ativo && !imeisAlertaSosDesligados.has(String(row.imei || '')));
+            const temAlertaSosAtivo = rows.some((row) => {
+                const imei = String(row.imei || '');
+                return !!row.sos_ativo && !isSosDesligadoParaImei(imei, row.recebido_em);
+            });
 
             renderTabela(rows);
             atualizarMarcadores(rows);

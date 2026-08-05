@@ -115,6 +115,38 @@
         box-shadow: inset 0 0 0 1px rgba(220, 53, 69, 0.18);
     }
 
+    .tracker-sos-banner {
+        display: none;
+        position: fixed;
+        top: 18px;
+        right: 20px;
+        z-index: 1200;
+        max-width: 440px;
+        width: calc(100% - 32px);
+        background: linear-gradient(135deg, #b91c1c 0%, #dc2626 100%);
+        color: #fff;
+        border-radius: 12px;
+        box-shadow: 0 12px 30px rgba(185, 28, 28, 0.35);
+        border: 1px solid rgba(255, 255, 255, 0.22);
+        padding: 12px 16px;
+    }
+
+    .tracker-sos-banner.show {
+        display: block;
+        animation: trackerSosPulse 0.9s ease-in-out infinite alternate;
+    }
+
+    @keyframes trackerSosPulse {
+        from {
+            transform: scale(1);
+            box-shadow: 0 12px 30px rgba(185, 28, 28, 0.35);
+        }
+        to {
+            transform: scale(1.01);
+            box-shadow: 0 16px 36px rgba(239, 68, 68, 0.45);
+        }
+    }
+
     @media (max-width: 991px) {
         .tracker-bottom-panel {
             left: 8px;
@@ -127,6 +159,18 @@
         }
     }
 </style>
+
+<div id="alertaSosGlobal" class="tracker-sos-banner" aria-live="assertive">
+    <div class="d-flex align-items-start justify-content-between gap-3">
+        <div>
+            <div class="fw-bold"><i class="fas fa-bell me-2"></i>Alerta SOS ativo</div>
+            <div id="alertaSosTexto" class="small mt-1">Veículo em situação de emergência.</div>
+        </div>
+        <button type="button" class="btn btn-sm btn-light text-danger fw-bold" onclick="desligarAlertaSos('GLOBAL')">
+            <i class="fas fa-volume-mute me-1"></i>Desligar alerta
+        </button>
+    </div>
+</div>
 
 <div class="container-fluid py-3 rastreamento-page">
     <div class="card shadow-sm border-0 mb-3">
@@ -484,8 +528,21 @@
 
     function desligarAlertaSos(imei) {
         const chave = String(imei || '').trim();
-        if (!chave) {
+        if (!chave || chave === 'GLOBAL') {
+            const dados = obterSosDesligados();
+            const ativos = document.querySelectorAll('.tracker-sos-row');
+            ativos.forEach((linha) => {
+                const imeiLinha = linha.dataset.imei || '';
+                if (imeiLinha) {
+                    dados[String(imeiLinha)] = { desligadoEm: new Date().toISOString() };
+                }
+            });
+            salvarSosDesligados(dados);
             pararSomAlertaSos();
+            const banner = document.getElementById('alertaSosGlobal');
+            if (banner) {
+                banner.classList.remove('show');
+            }
             return;
         }
 
@@ -617,6 +674,32 @@
         }
     }
 
+    function renderAlertaSosGlobal(rows) {
+        const banner = document.getElementById('alertaSosGlobal');
+        const texto = document.getElementById('alertaSosTexto');
+        if (!banner || !texto) {
+            return;
+        }
+
+        const ativos = rows.filter((row) => {
+            const imei = String(row.imei || '');
+            return !!row.sos_ativo && !isSosDesligadoParaImei(imei, row.recebido_em);
+        });
+
+        if (!ativos.length) {
+            banner.classList.remove('show');
+            texto.textContent = 'Veículo em situação de emergência.';
+            return;
+        }
+
+        const nomes = ativos
+            .map((row) => row.placa || row.nome || `IMEI ${String(row.imei || '').slice(-4)}`)
+            .filter(Boolean);
+
+        texto.textContent = nomes.length ? `Veículos em alerta: ${nomes.join(', ')}` : 'Veículo em situação de emergência.';
+        banner.classList.add('show');
+    }
+
     function renderTabela(rows) {
         const tbody = document.getElementById('tbodyRastreamento');
 
@@ -668,7 +751,7 @@
                 : `<span class="${classeStatus(row.status)}">${row.status}</span>`;
 
             html += `
-                <tr class="${sosAtivo ? 'tracker-sos-row' : ''}">
+                <tr class="${sosAtivo ? 'tracker-sos-row' : ''}" data-imei="${imeiNormalizado}">
                     <td>${row.placa || '-'}</td>
                     <td>${row.modelo || row.nome || '-'}</td>
                     <td>${row.imei || '-'}</td>
@@ -732,6 +815,7 @@
             });
 
             renderTabela(rows);
+            renderAlertaSosGlobal(rows);
             atualizarMarcadores(rows);
             document.getElementById('ultimaAtualizacao').textContent = `Atualizado: ${formatarData(data.updated_at)}`;
 

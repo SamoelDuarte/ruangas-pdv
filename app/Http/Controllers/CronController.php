@@ -229,8 +229,19 @@ class CronController extends Controller
                 $contact = $contactList[$index];
 
                 // Preparar os dados para envio
-                $imagem = asset($campaign->imagem->caminho);
+                $imagem = $this->buildPublicMediaUrl($campaign->imagem->caminho);
                 $texto = $campaign->texto ?? '';
+
+                if (!$this->mediaFileExists($campaign->imagem->caminho)) {
+                    Log::warning('Bulk send aborted: media file not found on server', [
+                        'campaign_id' => $campaign->id,
+                        'device_id' => $device->id,
+                        'image_path' => $campaign->imagem->caminho,
+                        'public_url' => $imagem,
+                    ]);
+                    echo "Arquivo de mídia indisponível para campanha {$campaign->id} via device {$device->id}.<br>";
+                    continue;
+                }
 
                 $sendOk = $this->sendImage($device->session, $contact->phone, $imagem, $texto);
 
@@ -393,6 +404,34 @@ class CronController extends Controller
             'mimetype' => $mimetype,
             'fileName' => $fileName,
         ];
+    }
+
+    private function buildPublicMediaUrl($imagePath): string
+    {
+        $imagePath = trim((string) $imagePath);
+        if ($imagePath === '') {
+            return '';
+        }
+
+        if (preg_match('/^https?:\/\//i', $imagePath)) {
+            return $imagePath;
+        }
+
+        $normalized = '/' . ltrim($imagePath, '/');
+        return url($normalized);
+    }
+
+    private function mediaFileExists($imagePath): bool
+    {
+        $imagePath = trim((string) $imagePath);
+        if ($imagePath === '') {
+            return false;
+        }
+
+        $relative = ltrim($imagePath, '/');
+        $absolute = public_path($relative);
+
+        return file_exists($absolute);
     }
 
     private function isDeviceWarmed(Device $device)

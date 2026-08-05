@@ -227,6 +227,15 @@ class CronController extends Controller
 
                 // Pega o próximo contato da lista
                 $contact = $contactList[$index];
+                $normalizedPhone = $this->normalizePhoneNumber($contact->phone);
+
+                if ($normalizedPhone && Cache::has("invalid_whatsapp_number:{$normalizedPhone}")) {
+                    $contact->pivot->send = true;
+                    $contact->pivot->save();
+
+                    echo "Número {$contact->phone} já foi marcado como inválido no WhatsApp, pulando para o próximo contato.<br>";
+                    continue;
+                }
 
                 // Preparar os dados para envio
                 $imagem = $this->buildPublicMediaUrl($campaign->imagem->caminho);
@@ -333,6 +342,8 @@ class CronController extends Controller
             }
 
             if ($this->evolutionNumberDoesNotExist($responseBody)) {
+                Cache::put("invalid_whatsapp_number:{$numero}", true, now()->addDays(7));
+
                 Log::warning('Número não existe no WhatsApp para a Evolution API; ignorando envio', [
                     'numero' => '55' . $numero,
                     'session' => $session,

@@ -496,16 +496,16 @@ class CarroController extends Controller
 
         $speed = (float) ($velocidade ?? 0);
 
+        if (in_array($ignicao, [false, 0, '0', 'false'], true)) {
+            return 'Parado ign desligado';
+        }
+
         if ($emMovimento === true || $speed > 3) {
             return 'Em movimento';
         }
 
-        if ($ignicao === true || $ignicao === 1 || $ignicao === '1') {
+        if (in_array($ignicao, [true, 1, '1', 'true'], true)) {
             return 'Parado ign ligado';
-        }
-
-        if ($ignicao === false || $ignicao === 0 || $ignicao === '0') {
-            return 'Parado ign desligado';
         }
 
         return 'Parado';

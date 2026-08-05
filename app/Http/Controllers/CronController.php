@@ -259,11 +259,16 @@ class CronController extends Controller
 
     public function sendImage($session, $phone, $urlImagem, $descricao = '')
     {
-        $numero = preg_replace('/[^0-9]/', '', $phone);
-        if (str_starts_with($numero, '55')) {
-            $numero = substr($numero, 2);
+        $numero = $this->normalizePhoneNumber($phone);
+        if (!$numero) {
+            Log::warning('Bulk send aborted: phone invalid for Evolution media message', [
+                'session' => $session,
+                'phone' => $phone,
+            ]);
+            return false;
         }
 
+        $mediaInfo = $this->resolveMediaMetadata($urlImagem);
         $client = new \GuzzleHttp\Client([
             'timeout' => 15,
             'connect_timeout' => 10,
@@ -279,59 +284,115 @@ class CronController extends Controller
         $body = json_encode([
             'number' => '55' . $numero,
             'mediatype' => 'image',
-            'mimetype' => 'image/png',
+            'mimetype' => $mediaInfo['mimetype'],
             'caption' => $descricao,
-            'media' => $urlImagem,
-            'fileName' => 'imagem.png',
+            'media' => $mediaInfo['media'],
+            'fileName' => $mediaInfo['fileName'],
         ]);
 
         try {
-            // Log da requisição
             Log::info("Enviando mensagem para Evolution API", [
                 'numero' => '55' . $numero,
                 'session' => $session,
-                'url' => $url
+                'url' => $url,
+                'mimetype' => $mediaInfo['mimetype'],
+                'fileName' => $mediaInfo['fileName'],
             ]);
 
             $request = new \GuzzleHttp\Psr7\Request('POST', $url, $headers, $body);
             $response = $client->sendAsync($request)->wait();
-            
+
             $statusCode = $response->getStatusCode();
             $responseBody = json_decode((string) $response->getBody(), true);
 
-            // Log detalhado da resposta
             Log::info("Resposta da Evolution API", [
                 'numero' => '55' . $numero,
                 'status' => $statusCode,
                 'response' => $responseBody,
-                'session' => $session
+                'session' => $session,
             ]);
 
             if ($statusCode >= 200 && $statusCode < 300) {
                 Log::info("Mensagem enviada com sucesso", [
                     'numero' => '55' . $numero,
                     'session' => $session,
-                    'responseBody' => $responseBody
+                    'responseBody' => $responseBody,
                 ]);
                 return true;
-            } else {
-                Log::warning("Resposta inesperada da Evolution API", [
-                    'numero' => '55' . $numero,
-                    'status' => $statusCode,
-                    'response' => $responseBody,
-                    'session' => $session
-                ]);
-                return false;
             }
+
+            Log::warning("Resposta inesperada da Evolution API", [
+                'numero' => '55' . $numero,
+                'status' => $statusCode,
+                'response' => $responseBody,
+                'session' => $session,
+                'payload' => json_decode($body, true),
+            ]);
+            return false;
         } catch (\Exception $e) {
             Log::error("Erro ao enviar mensagem para Evolution API", [
                 'numero' => '55' . $numero,
                 'session' => $session,
                 'erro' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
             return false;
         }
+    }
+
+    private function normalizePhoneNumber($phone): ?string
+    {
+        $digits = preg_replace('/\D/', '', (string) $phone);
+        if (empty($digits) || strlen($digits) < 10 || strlen($digits) > 15) {
+            return null;
+        }
+
+        if (str_starts_with($digits, '55')) {
+            $digits = substr($digits, 2);
+        }
+
+        if (strlen($digits) < 10 || strlen($digits) > 15) {
+            return null;
+        }
+
+        return $digits;
+    }
+
+    private function resolveMediaMetadata(string $urlImagem): array
+    {
+        $default = [
+            'media' => $urlImagem,
+            'mimetype' => 'image/jpeg',
+            'fileName' => 'imagem.jpg',
+        ];
+
+        if (empty($urlImagem)) {
+            return $default;
+        }
+
+        $path = parse_url($urlImagem, PHP_URL_PATH) ?: $urlImagem;
+        $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+
+        $mimeMap = [
+            'jpg' => 'image/jpeg',
+            'jpeg' => 'image/jpeg',
+            'png' => 'image/png',
+            'gif' => 'image/gif',
+            'webp' => 'image/webp',
+            'bmp' => 'image/bmp',
+        ];
+
+        $mimetype = $mimeMap[$extension] ?? 'image/jpeg';
+        $fileName = basename($path);
+        if (empty($fileName) || strpos($fileName, '.') === false) {
+            $fileName = 'imagem.' . ($extension ?: 'jpg');
+        }
+
+        return [
+            'media' => $urlImagem,
+            'mimetype' => $mimetype,
+            'fileName' => $fileName,
+        ];
     }
 
     private function isDeviceWarmed(Device $device)

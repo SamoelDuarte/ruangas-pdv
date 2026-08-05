@@ -276,7 +276,14 @@ class TrackerTcpMessageIngestor
     ): TrackerAddressStay {
         $lastStay = TrackerAddressStay::where('imei', $imei)->latest('id')->first();
 
-        if ($lastStay && $this->normalizeAddress($lastStay->address_line) === $this->normalizeAddress($addressLine)) {
+        if ($lastStay && $this->isSameStayLocation(
+            $lastStay->address_line,
+            $addressLine,
+            $lastStay->latitude,
+            $lastStay->longitude,
+            $latitude,
+            $longitude,
+        )) {
             $arrived = $lastStay->arrived_at ?? $eventTime;
             $lastStay->update([
                 'carro_id' => $carroId ?? $lastStay->carro_id,
@@ -299,6 +306,72 @@ class TrackerTcpMessageIngestor
             'left_at' => $eventTime,
             'permanence_seconds' => 0,
         ]);
+    }
+
+    private function isSameStayLocation(
+        ?string $previousAddress,
+        ?string $newAddress,
+        ?float $previousLatitude,
+        ?float $previousLongitude,
+        ?float $newLatitude,
+        ?float $newLongitude
+    ): bool {
+        $previousNormalized = $this->normalizeAddress((string) ($previousAddress ?? ''));
+        $newNormalized = $this->normalizeAddress((string) ($newAddress ?? ''));
+
+        if ($previousNormalized !== '' && $newNormalized !== '') {
+            $previousHouse = $this->extractHouseNumber($previousAddress);
+            $newHouse = $this->extractHouseNumber($newAddress);
+
+            if ($previousHouse !== null && $newHouse !== null && $previousHouse !== $newHouse) {
+                return false;
+            }
+
+            if ($previousNormalized === $newNormalized) {
+                return true;
+            }
+        }
+
+        if ($previousLatitude !== null && $previousLongitude !== null && $newLatitude !== null && $newLongitude !== null) {
+            $distanceMeters = $this->distanceInMeters(
+                $previousLatitude,
+                $previousLongitude,
+                $newLatitude,
+                $newLongitude
+            );
+
+            if ($distanceMeters <= 30) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function extractHouseNumber(?string $address): ?int
+    {
+        if ($address === null || trim($address) === '') {
+            return null;
+        }
+
+        if (preg_match('/(?:^|\D)(\d{1,6})(?:$|\D)/', trim($address), $matches) !== 1) {
+            return null;
+        }
+
+        return (int) $matches[1];
+    }
+
+    private function distanceInMeters(float $lat1, float $lon1, float $lat2, float $lon2): float
+    {
+        $earthRadius = 6371000;
+        $latDelta = deg2rad($lat2 - $lat1);
+        $lonDelta = deg2rad($lon2 - $lon1);
+
+        $a = sin($latDelta / 2) * sin($latDelta / 2) +
+            cos(deg2rad($lat1)) * cos(deg2rad($lat2)) *
+            sin($lonDelta / 2) * sin($lonDelta / 2);
+
+        return 2 * $earthRadius * atan2(sqrt($a), sqrt(1 - $a));
     }
 
     private function findCoordinates(array $parts): array

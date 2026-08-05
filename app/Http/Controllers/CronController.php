@@ -332,6 +332,16 @@ class CronController extends Controller
                 return true;
             }
 
+            if ($this->evolutionNumberDoesNotExist($responseBody)) {
+                Log::warning('Número não existe no WhatsApp para a Evolution API; ignorando envio', [
+                    'numero' => '55' . $numero,
+                    'session' => $session,
+                    'status' => $statusCode,
+                    'response' => $responseBody,
+                ]);
+                return false;
+            }
+
             Log::warning("Resposta inesperada da Evolution API", [
                 'numero' => '55' . $numero,
                 'status' => $statusCode,
@@ -432,6 +442,30 @@ class CronController extends Controller
         $absolute = public_path($relative);
 
         return file_exists($absolute);
+    }
+
+    private function evolutionNumberDoesNotExist($responseBody): bool
+    {
+        if (!is_array($responseBody)) {
+            return false;
+        }
+
+        $message = $responseBody['response']['message'] ?? $responseBody['message'] ?? null;
+        if (!is_array($message)) {
+            return false;
+        }
+
+        foreach ($message as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+
+            if (($item['exists'] ?? false) === false) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function isDeviceWarmed(Device $device)

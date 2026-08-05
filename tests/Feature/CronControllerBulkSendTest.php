@@ -33,4 +33,25 @@ class CronControllerBulkSendTest extends TestCase
         $this->assertSame('11999999999', $method->invoke($controller, '5511999999999'));
         $this->assertSame(null, $method->invoke($controller, 'abc'));
     }
+
+    public function test_detects_invalid_whatsapp_number_response_from_evolution(): void
+    {
+        $controller = new CronController();
+
+        $reflection = new \ReflectionClass($controller);
+        $method = $reflection->getMethod('evolutionNumberDoesNotExist');
+        $method->setAccessible(true);
+
+        $response = [
+            'status' => 400,
+            'error' => 'Bad Request',
+            'response' => [
+                'message' => [
+                    ['jid' => '5511960319050@s.whatsapp.net', 'exists' => false, 'number' => '5511960319050'],
+                ],
+            ],
+        ];
+
+        $this->assertTrue($method->invoke($controller, $response));
+    }
 }

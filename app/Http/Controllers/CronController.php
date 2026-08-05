@@ -203,11 +203,15 @@ class CronController extends Controller
             }
 
             // Para cada device disponível, pega um contato diferente e envia
-            foreach ($availableDevices as $index => $device) {
+            $selectedContacts = $this->resolveUniqueContactsForBatch($contactList, count($availableDevices));
+
+            foreach ($availableDevices as $deviceIndex => $device) {
                 // Verifica se ainda tem contatos disponíveis
-                if ($index >= $contactList->count()) {
-                    break; // Sai do loop se não houver mais contatos
+                if ($deviceIndex >= count($selectedContacts)) {
+                    break;
                 }
+
+                $contact = $selectedContacts[$deviceIndex];
 
                 // Se o device não estiver aquecido, tenta fazer a troca de mensagens com outro device.
                 if (!$this->isDeviceWarmed($device)) {
@@ -225,8 +229,6 @@ class CronController extends Controller
                     }
                 }
 
-                // Pega o próximo contato da lista
-                $contact = $contactList[$index];
                 $normalizedPhone = $this->normalizePhoneNumber($contact->phone);
 
                 if ($normalizedPhone && Cache::has("invalid_whatsapp_number:{$normalizedPhone}")) {
@@ -254,7 +256,7 @@ class CronController extends Controller
 
                 $sendOk = $this->sendImage($device->session, $contact->phone, $imagem, $texto);
 
-                    if ($sendOk) {
+                if ($sendOk) {
                     // Atualiza o updated_at do device apenas quando a API confirmou aceitação
                     $device->touch();
 
@@ -477,6 +479,18 @@ class CronController extends Controller
         }
 
         return false;
+    }
+
+    private function resolveUniqueContactsForBatch($contacts, int $neededCount): array
+    {
+        $items = $contacts->values();
+
+        if ($neededCount <= 0 || $items->isEmpty()) {
+            return [];
+        }
+
+        $limit = min($neededCount, $items->count());
+        return $items->take($limit)->all();
     }
 
     private function isDeviceWarmed(Device $device)

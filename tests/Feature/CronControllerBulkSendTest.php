@@ -54,4 +54,18 @@ class CronControllerBulkSendTest extends TestCase
 
         $this->assertTrue($method->invoke($controller, $response));
     }
+
+    public function test_uses_unique_contacts_for_each_available_device(): void
+    {
+        $controller = new CronController();
+
+        $reflection = new \ReflectionClass($controller);
+        $method = $reflection->getMethod('resolveUniqueContactsForBatch');
+        $method->setAccessible(true);
+
+        $contacts = collect(['55110000001', '55110000002', '55110000003']);
+        $result = $method->invoke($controller, $contacts, 2);
+
+        $this->assertSame(['55110000001', '55110000002'], $result);
+    }
 }

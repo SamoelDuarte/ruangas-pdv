@@ -125,7 +125,7 @@ class TrackerTcpMessageIngestor
             $latitude = $this->toFloat($parts[12] ?? null);
             $gpsAt = $this->parseTrackerDate($parts[13] ?? null);
             $battery = $this->toFloat($parts[20] ?? null);
-        } elseif ($packetType === 'GTSTT') {
+        } elseif (in_array($packetType, ['GTSTT', 'GTMPN', 'GTMPF', 'GTSOS'], true)) {
             [$longitude, $latitude] = $this->findCoordinates($parts);
             $gpsAt = $this->findDateInParts($parts);
         } elseif ($packetType === 'GTINF') {

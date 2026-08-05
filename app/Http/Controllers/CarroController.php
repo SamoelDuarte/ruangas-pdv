@@ -312,7 +312,8 @@ class CarroController extends Controller
             $ignicao = $pingInf?->ignition ?? $pingAny?->ignition;
             $velocidade = $pingFri?->speed ?? $pingAny?->speed;
             $emMovimento = $pingAny?->in_motion;
-            $status = $this->resolverStatusComposto($ignicao, $emMovimento, $velocidade);
+            $sosAtivo = ($pingAny?->packet_type ?? '') === 'GTSOS';
+            $status = $sosAtivo ? 'Alerta SOS' : $this->resolverStatusComposto($ignicao, $emMovimento, $velocidade);
             $bloqueado = $this->resolveTrackerBlockedState($lastCommand);
 
             $rows[] = [
@@ -322,6 +323,7 @@ class CarroController extends Controller
                 'modelo' => $carro->modelo,
                 'imei' => $carro->imei_rastreador,
                 'status' => $status,
+                'sos_ativo' => $sosAtivo,
                 'ignicao' => $ignicao,
                 'em_movimento' => $emMovimento,
                 'velocidade' => $velocidade,
@@ -357,7 +359,8 @@ class CarroController extends Controller
             $ignicao = $pingInf?->ignition ?? $pingAny->ignition;
             $velocidade = $pingFri?->speed ?? $pingAny->speed;
             $emMovimento = $pingAny->in_motion;
-            $status = $this->resolverStatusComposto($ignicao, $emMovimento, $velocidade);
+            $sosAtivo = ($pingAny?->packet_type ?? '') === 'GTSOS';
+            $status = $sosAtivo ? 'Alerta SOS' : $this->resolverStatusComposto($ignicao, $emMovimento, $velocidade);
             $bloqueado = $this->resolveTrackerBlockedState($lastCommand);
 
             $rows[] = [
@@ -367,6 +370,7 @@ class CarroController extends Controller
                 'modelo' => null,
                 'imei' => $pingAny->imei,
                 'status' => $status,
+                'sos_ativo' => $sosAtivo,
                 'ignicao' => $ignicao,
                 'em_movimento' => $emMovimento,
                 'velocidade' => $velocidade,

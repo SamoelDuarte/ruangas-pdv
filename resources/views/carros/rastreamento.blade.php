@@ -110,6 +110,11 @@
         font-size: 14px;
     }
 
+    .tracker-sos-row {
+        background: rgba(220, 53, 69, 0.12) !important;
+        box-shadow: inset 0 0 0 1px rgba(220, 53, 69, 0.18);
+    }
+
     @media (max-width: 991px) {
         .tracker-bottom-panel {
             left: 8px;
@@ -355,6 +360,82 @@
         return '-';
     }
 
+    let somAlertaSosAtivo = false;
+    let somAlertaSosTimer = null;
+    let somAlertaSosContext = null;
+    let somAlertaSosOscilador = null;
+    const imeisAlertaSosDesligados = new Set();
+
+    function iniciarSomAlertaSos() {
+        if (somAlertaSosAtivo) {
+            return;
+        }
+
+        const AudioCtor = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtor) {
+            return;
+        }
+
+        somAlertaSosContext = new AudioCtor();
+        somAlertaSosOscilador = somAlertaSosContext.createOscillator();
+        const ganho = somAlertaSosContext.createGain();
+
+        somAlertaSosOscilador.type = 'sawtooth';
+        somAlertaSosOscilador.frequency.value = 880;
+        ganho.gain.value = 0.025;
+
+        somAlertaSosOscilador.connect(ganho);
+        ganho.connect(somAlertaSosContext.destination);
+        somAlertaSosOscilador.start();
+        somAlertaSosAtivo = true;
+
+        somAlertaSosTimer = setInterval(() => {
+            if (somAlertaSosContext && somAlertaSosContext.state === 'suspended') {
+                somAlertaSosContext.resume();
+            }
+            if (somAlertaSosOscilador) {
+                somAlertaSosOscilador.frequency.value = 880;
+            }
+        }, 900);
+    }
+
+    function pararSomAlertaSos() {
+        if (somAlertaSosTimer) {
+            clearInterval(somAlertaSosTimer);
+            somAlertaSosTimer = null;
+        }
+
+        if (somAlertaSosOscilador) {
+            try {
+                somAlertaSosOscilador.stop();
+            } catch (error) {
+                // Ignora caso o oscilador já tenha sido parado.
+            }
+            somAlertaSosOscilador = null;
+        }
+
+        if (somAlertaSosContext) {
+            try {
+                somAlertaSosContext.close();
+            } catch (error) {
+                // Ignora casos de contexto já encerrado.
+            }
+            somAlertaSosContext = null;
+        }
+
+        somAlertaSosAtivo = false;
+    }
+
+    function desligarAlertaSos(imei) {
+        if (!imei) {
+            pararSomAlertaSos();
+            return;
+        }
+
+        imeisAlertaSosDesligados.add(String(imei));
+        pararSomAlertaSos();
+    }
+
     function classeStatus(status) {
         if (status === 'Em movimento') {
             return 'badge bg-success';
@@ -365,11 +446,18 @@
         if (status === 'Parado ign desligado') {
             return 'badge bg-secondary';
         }
+        if (status === 'Alerta SOS') {
+            return 'badge bg-danger';
+        }
         return 'badge bg-dark';
     }
 
     function corDoMarcador(row) {
         const permanencia = parseInt(row.permanencia_segundos || 0, 10);
+
+        if (row.sos_ativo) {
+            return '#d72638';
+        }
 
         if (row.status === 'Em movimento') {
             return '#6f2cff'; // roxo
@@ -487,6 +575,9 @@
             const acao = bloqueado ? 'unblock' : 'block';
             const rotulo = bloqueado ? 'Desbloquear' : 'Bloquear';
             const pergunta = bloqueado ? 'Deseja realmente desbloquear?' : 'Deseja realmente bloquear?';
+            const imeiNormalizado = row.imei ? String(row.imei) : '';
+            const sosAtivo = !!row.sos_ativo && !imeisAlertaSosDesligados.has(imeiNormalizado);
+
             let botaoComando = '<span class="text-muted small">Indisponivel</span>';
 
             if (!comandosHabilitados) {
@@ -508,13 +599,20 @@
                 `;
             }
 
+            const statusMarkup = sosAtivo
+                ? `<div class="d-flex flex-column gap-1">
+                    <span class="${classeStatus('Alerta SOS')}">Alerta SOS</span>
+                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="desligarAlertaSos('${imeiNormalizado}')">Desligar alerta</button>
+                  </div>`
+                : `<span class="${classeStatus(row.status)}">${row.status}</span>`;
+
             html += `
-                <tr>
+                <tr class="${sosAtivo ? 'tracker-sos-row' : ''}">
                     <td>${row.placa || '-'}</td>
                     <td>${row.modelo || row.nome || '-'}</td>
                     <td>${row.imei || '-'}</td>
                     <td>${botaoComando}</td>
-                    <td><span class="${classeStatus(row.status)}">${row.status}</span></td>
+                    <td>${statusMarkup}</td>
                     <td>${textoIgnicao(row.ignicao)}</td>
                     <td>${row.velocidade ?? '-'}</td>
                     <td>${row.tensao_veiculo != null ? `${Number(row.tensao_veiculo).toFixed(2)} V` : '-'}</td>
@@ -567,10 +665,17 @@
             const response = await fetch('{{ route('carros.rastreamento.dados') }}');
             const data = await response.json();
             const rows = Array.isArray(data.rows) ? data.rows : [];
+            const temAlertaSosAtivo = rows.some((row) => !!row.sos_ativo && !imeisAlertaSosDesligados.has(String(row.imei || '')));
 
             renderTabela(rows);
             atualizarMarcadores(rows);
             document.getElementById('ultimaAtualizacao').textContent = `Atualizado: ${formatarData(data.updated_at)}`;
+
+            if (temAlertaSosAtivo) {
+                iniciarSomAlertaSos();
+            } else {
+                pararSomAlertaSos();
+            }
 
             if (manual) {
                 showToast('success', 'Dados de rastreamento atualizados');

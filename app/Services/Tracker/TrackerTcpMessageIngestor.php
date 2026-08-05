@@ -125,9 +125,15 @@ class TrackerTcpMessageIngestor
             $latitude = $this->toFloat($parts[12] ?? null);
             $gpsAt = $this->parseTrackerDate($parts[13] ?? null);
             $battery = $this->toFloat($parts[20] ?? null);
-        } elseif (in_array($packetType, ['GTSTT', 'GTMPN', 'GTMPF', 'GTSOS'], true)) {
+        } elseif (in_array($packetType, ['GTSTT', 'GTSTC', 'GTIGN', 'GTIGL', 'GTIGF', 'GTMPN', 'GTMPF', 'GTSOS'], true)) {
             [$longitude, $latitude] = $this->findCoordinates($parts);
             $gpsAt = $this->findDateInParts($parts);
+            $speed = $this->parseSpeedFromStatusPacket($parts, $packetType);
+
+            $tensaoVeiculo = $this->parseVehicleVoltageFromStatusPacket($parts);
+            if ($tensaoVeiculo !== null) {
+                $tensaoBateria = $tensaoVeiculo;
+            }
         } elseif ($packetType === 'GTINF') {
             $tensaoVeiculoRaw = $this->toFloat($parts[9] ?? null);
             if ($tensaoVeiculoRaw !== null) {
@@ -424,6 +430,10 @@ class TrackerTcpMessageIngestor
             return false;
         }
 
+        if (in_array($packetType, ['GTSTT', 'GTSTC', 'GTSOS'], true)) {
+            return $this->parseIgnitionFlagFromStatusPacket($parts, $packetType);
+        }
+
         return null;
     }
 
@@ -437,10 +447,85 @@ class TrackerTcpMessageIngestor
             return false;
         }
 
-        if (in_array($packetType, ['GTFRI', 'GTERI'], true)) {
-            $speed = $this->toFloat($parts[8] ?? null);
+        if (in_array($packetType, ['GTFRI', 'GTERI', 'GTSTT', 'GTSTC', 'GTSOS'], true)) {
+            $speed = $this->parseSpeedFromStatusPacket($parts, $packetType);
             if ($speed !== null) {
                 return $speed > 3;
+            }
+        }
+
+        return null;
+    }
+
+    private function parseIgnitionFlagFromStatusPacket(array $parts, ?string $packetType = null): ?bool
+    {
+        $explicit = $parts[4] ?? null;
+        $normalized = trim((string) $explicit);
+
+        if ($normalized === '21' || $normalized === '11') {
+            return false;
+        }
+
+        if ($normalized === '22' || $normalized === '12') {
+            return true;
+        }
+
+        if ($packetType === 'GTIGN' || $packetType === 'GTIGL') {
+            return true;
+        }
+
+        for ($i = 4; $i < min(count($parts), 12); $i++) {
+            $value = trim((string) ($parts[$i] ?? ''));
+            if ($value === '' || !preg_match('/^(00|01|0|1)$/', $value)) {
+                continue;
+            }
+
+            return (int) $value > 0;
+        }
+
+        return null;
+    }
+
+    private function parseSpeedFromStatusPacket(array $parts, ?string $packetType = null): ?float
+    {
+        for ($i = 4; $i < min(count($parts), 12); $i++) {
+            $value = $this->toFloat($parts[$i] ?? null);
+            if ($value === null) {
+                continue;
+            }
+
+            if ($value >= 0 && $value <= 200 && preg_match('/(\.0|\.00|^\d+$)/', trim((string) ($parts[$i] ?? '')))) {
+                if ($i >= 4 && $i <= 9) {
+                    return $value;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private function parseVehicleVoltageFromStatusPacket(array $parts): ?float
+    {
+        for ($i = 6; $i <= 10; $i++) {
+            $value = $this->toFloat($parts[$i] ?? null);
+            if ($value === null) {
+                continue;
+            }
+
+            if ($value >= 50 && $value <= 2000) {
+                return $value > 100 ? round($value / 100, 3) : $value;
+            }
+        }
+
+        for ($i = 4; $i < min(count($parts), 18); $i++) {
+            $value = $this->toFloat($parts[$i] ?? null);
+            if ($value === null) {
+                continue;
+            }
+
+            $raw = trim((string) ($parts[$i] ?? ''));
+            if ($value >= 50 && $value <= 2000 && str_contains($raw, '.')) {
+                return round($value / 100, 3);
             }
         }
 

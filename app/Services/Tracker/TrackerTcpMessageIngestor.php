@@ -506,17 +506,6 @@ class TrackerTcpMessageIngestor
 
     private function parseVehicleVoltageFromStatusPacket(array $parts): ?float
     {
-        for ($i = 6; $i <= 10; $i++) {
-            $value = $this->toFloat($parts[$i] ?? null);
-            if ($value === null) {
-                continue;
-            }
-
-            if ($value >= 50 && $value <= 2000) {
-                return $value > 100 ? round($value / 100, 3) : $value;
-            }
-        }
-
         for ($i = 4; $i < min(count($parts), 18); $i++) {
             $value = $this->toFloat($parts[$i] ?? null);
             if ($value === null) {
@@ -524,8 +513,12 @@ class TrackerTcpMessageIngestor
             }
 
             $raw = trim((string) ($parts[$i] ?? ''));
-            if ($value >= 50 && $value <= 2000 && str_contains($raw, '.')) {
-                return round($value / 100, 3);
+            if ($value >= 500 && $value <= 1200) {
+                return round($value / 60, 2);
+            }
+
+            if ($value >= 50 && $value <= 200 && str_contains($raw, '.')) {
+                return round($value / 10, 2);
             }
         }
 

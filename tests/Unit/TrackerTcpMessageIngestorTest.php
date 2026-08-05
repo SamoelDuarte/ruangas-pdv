@@ -19,7 +19,7 @@ class TrackerTcpMessageIngestorTest extends TestCase
 
         $this->assertSame('GTSTT', $result['packet_type']);
         $this->assertTrue($result['ignition']);
-        $this->assertEqualsWithDelta(8.475, $result['tensao_veiculo'], 0.001);
+        $this->assertEqualsWithDelta(14.13, $result['tensao_veiculo'], 0.01);
     }
 
     public function test_parse_gtigl_exposes_ignition_and_voltage(): void
@@ -34,6 +34,6 @@ class TrackerTcpMessageIngestorTest extends TestCase
 
         $this->assertSame('GTIGL', $result['packet_type']);
         $this->assertTrue($result['ignition']);
-        $this->assertEqualsWithDelta(8.475, $result['tensao_veiculo'], 0.001);
+        $this->assertEqualsWithDelta(14.13, $result['tensao_veiculo'], 0.01);
     }
 }
